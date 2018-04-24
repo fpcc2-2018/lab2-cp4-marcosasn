@@ -1,6 +1,8 @@
 ---
 title: "EDA do log de eventos"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 ## O quê
@@ -30,7 +32,6 @@ events = events %>%
 
 ## No tempo
 
-
 ```{r}
 events %>% 
     mutate(date = round_date(date, unit = "day")) %>% 
@@ -40,5 +41,35 @@ events %>%
 ```
 
 ## Por tipo
+```{r}
+events %>% 
+    mutate(date = round_date(date, unit = "day")) %>%
+    filter (action == 'visitPage') %>%
+    count(date, action, group) %>% 
+    ggplot(aes(x=date,
+               y=n,
+               fill=group)) +
+    geom_area() +
+    facet_wrap(~ group, scales = "free") +
+    theme_bw()
+```
 
 ## Etc.
+```{r}
+events %>% 
+    mutate(date = round_date(date, unit = "day")) %>%
+    filter (action == 'visitPage') %>%
+    count(date, group, result_position) %>%
+    head()
+
+#has result_position equals to 'NA'
+events %>% 
+    mutate(date = round_date(date, unit = "day")) %>%
+    filter (action == 'visitPage') %>%
+    count(date, group, result_position) %>%
+    ggplot(aes(x = result_position, y=n, fill = group)) +
+    geom_area() +
+    facet_wrap(~ date) +
+    scale_x_log10() +
+    scale_y_log10()
+```
