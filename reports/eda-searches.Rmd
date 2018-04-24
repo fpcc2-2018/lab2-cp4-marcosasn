@@ -11,16 +11,85 @@ Aqui, exploramos esses dados.
 library(tidyverse)
 library(here)
 library(lubridate)
+library(shiny)
+library(plotly)
 theme_set(theme_bw())
 ```
 
 ```{r ETL}
-buscas = read_csv(here::here("data/search_data.csv"))
+buscas = read_csv(here::here("data/search_data.csv")) %>%
+    head(100000)
 ```
 
 ```{r}
 buscas %>% 
     ggplot(aes(x = results)) + 
     geom_histogram(binwidth = 5) 
+```
+
+```{r}
+#search_index quantidade de buscas na sessão
+
+
+#What is our daily overall clickthrough rate? How does it vary between the groups?
+#num_clicks
+#group
+#session_start_date
+
+plot = buscas %>% 
+    group_by(group) %>% 
+    summarise(n = n()) %>% 
+    ggplot(aes(x = group, y = n)) + 
+    geom_col(
+        aes(text = paste("Grupo:", group,
+                         "<br>",
+                         "Frequência:", n)),
+        fill = "white", color = "blue") +
+    ggtitle("Distribuição da frequência do grupo da sessão") +
+    xlab("Grupo") + 
+    ylab("Frequência") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+
+div(ggplotly(plot, tooltip = "text", width = 700, height = 400),  align = "center")
+
+plot = buscas %>% 
+    ggplot(aes(x = group, y = num_clicks)) + 
+    geom_jitter(aes(text = paste("Grupo:",group,
+                                 "<br>Quantidade índices da busca:",search_index)),
+                alpha = .4, width = .2, size = .8, color = "blue") +
+    ggtitle("Distribuição da quantidade de índices da busca") +
+    xlab("Grupo") + 
+    ylab("Quantidade índices da busca") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+
+div(ggplotly(plot, tooltip = "text", width = 700, height = 400),  align = "center")
+
+plot = buscas %>% 
+    ggplot(aes(x = group, y = num_clicks)) + 
+    geom_jitter(aes(text = paste("Grupo:",group,
+                                 "<br>Quantidade índices da busca:",search_index)),
+                alpha = .4, width = .2, size = .8, color = "blue") +
+    scale_y_log10() +
+    ggtitle("Distribuição da quantidade de índices da busca") +
+    xlab("Grupo") + 
+    ylab("Quantidade índices da busca") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+
+div(ggplotly(plot, tooltip = "text", width = 700, height = 400),  align = "center")
+
+plot = buscas %>% 
+    ggplot(aes(x= num_clicks)) + 
+    geom_histogram(binwidth = 5, fill = "white", color = "blue") + 
+    facet_grid(group ~ .) +
+    ggtitle("Distribuição da frequência da quantidade de índices da busca") +
+    xlab("Quantidade índices da busca") + 
+    ylab("Frequência") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+
+div(ggplotly(plot, tooltip = "text", width = 700, height = 400),  align = "center")
+```
+
+```{r}
+
 ```
 
