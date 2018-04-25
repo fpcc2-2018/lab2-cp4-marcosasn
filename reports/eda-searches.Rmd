@@ -1,13 +1,26 @@
 ---
-title: "EDA buscas"
-output: html_notebook
+title: "Lab 2 - Checkpoint 4"
+author: "Marcos Nascimento (marcosantonio@copin.ufcg.edu.br)"
+date: "Abril 25, 2018"
+output:
+  html_document:
+    df_print: paged
 ---
+
+<style>
+    body {text-align: justify;
+    font-family: "Times New Roman";
+    -webkit-column-count:2;}
+</style>
 
 O objeto principal da análise são as buscas e a navegação depois da busca. Criamos esses dados a partir dos dados originais da wikimedia em `/data/search_data.csv`. 
 
 Aqui, exploramos esses dados. 
 
-```{r setup}
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(fig.align="center", fig.width=7, fig.height=4)
+knitr::opts_chunk$set(warning = FALSE)
+
 library(tidyverse)
 library(here)
 library(lubridate)
@@ -16,80 +29,136 @@ library(plotly)
 theme_set(theme_bw())
 ```
 
+# Como são as buscas no Wikimidia?
+
+## Coleção de dados
+
 ```{r ETL}
-buscas = read_csv(here::here("data/search_data.csv")) %>%
-    head(100000)
+buscas = read_csv(here::here("data/search_data.csv")) #%>%
+    #head(50000)
 ```
 
-```{r}
-buscas %>% 
-    ggplot(aes(x = results)) + 
-    geom_histogram(binwidth = 5) 
-```
+## Contexto da pesquisa e questões de pesquisa
 
+## Distribuição dos dados
+### Visualizando as distribuições
 ```{r}
 #search_index quantidade de buscas na sessão
 
-
 #What is our daily overall clickthrough rate? How does it vary between the groups?
-#num_clicks
 #group
+#num_clicks
 #session_start_date
+```
 
-plot = buscas %>% 
+```{r}
+#group
+buscas %>% 
     group_by(group) %>% 
     summarise(n = n()) %>% 
-    ggplot(aes(x = group, y = n)) + 
-    geom_col(
-        aes(text = paste("Grupo:", group,
-                         "<br>",
-                         "Frequência:", n)),
-        fill = "white", color = "blue") +
+    ggplot(aes(x = group, y = n, color=group)) + 
+    geom_col(fill="white") +
     ggtitle("Distribuição da frequência do grupo da sessão") +
     xlab("Grupo") + 
     ylab("Frequência") +
   theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 
-div(ggplotly(plot, tooltip = "text", width = 700, height = 400),  align = "center")
-
-plot = buscas %>% 
-    ggplot(aes(x = group, y = num_clicks)) + 
-    geom_jitter(aes(text = paste("Grupo:",group,
-                                 "<br>Quantidade índices da busca:",search_index)),
-                alpha = .4, width = .2, size = .8, color = "blue") +
-    ggtitle("Distribuição da quantidade de índices da busca") +
-    xlab("Grupo") + 
-    ylab("Quantidade índices da busca") +
-  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
-
-div(ggplotly(plot, tooltip = "text", width = 700, height = 400),  align = "center")
-
-plot = buscas %>% 
-    ggplot(aes(x = group, y = num_clicks)) + 
-    geom_jitter(aes(text = paste("Grupo:",group,
-                                 "<br>Quantidade índices da busca:",search_index)),
-                alpha = .4, width = .2, size = .8, color = "blue") +
-    scale_y_log10() +
-    ggtitle("Distribuição da quantidade de índices da busca") +
-    xlab("Grupo") + 
-    ylab("Quantidade índices da busca") +
-  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
-
-div(ggplotly(plot, tooltip = "text", width = 700, height = 400),  align = "center")
-
-plot = buscas %>% 
-    ggplot(aes(x= num_clicks)) + 
-    geom_histogram(binwidth = 5, fill = "white", color = "blue") + 
-    facet_grid(group ~ .) +
-    ggtitle("Distribuição da frequência da quantidade de índices da busca") +
-    xlab("Quantidade índices da busca") + 
-    ylab("Frequência") +
-  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
-
-div(ggplotly(plot, tooltip = "text", width = 700, height = 400),  align = "center")
+buscas %>%
+  subset(select = c(group)) %>%
+  summary()
 ```
 
 ```{r}
+#num_clicks
+buscas %>% 
+    ggplot(aes(x = group, y = num_clicks)) + 
+    geom_jitter(aes(alpha = .4, width = .2, size = .8, color = group)) +
+    ggtitle("Distribuição da quantidade de cliques") +
+    xlab("Grupo") + 
+    ylab("Quantidade de cliques") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 
+buscas %>% 
+    ggplot(aes(x = group, y = num_clicks)) + 
+    geom_jitter(aes(alpha = .4, width = .2, size = .8, color = group)) +
+    scale_y_log10() +
+    ggtitle("Distribuição da quantidade de cliques") +
+    xlab("Grupo") + 
+    ylab("Quantidade de cliques") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+
+buscas %>% 
+    ggplot(aes(x= num_clicks)) + 
+    geom_histogram(binwidth = 1, fill = "white", color = "blue") + 
+    facet_grid(group ~ .) +
+    ggtitle("Distribuição da frequência da quantidade de cliques") +
+    xlab("Quantidade de cliques") + 
+    ylab("Frequência") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+
+buscas %>%
+  subset(select = c(num_clicks)) %>%
+  summary()
+```
+
+```{r}
+buscas %>% 
+    mutate(date = round_date(session_start_date, unit = "day")) %>% 
+    count(date, group) %>% 
+    ggplot(aes(x = date, y = n, fill = group)) +
+    geom_area() +
+    facet_grid(~ group)
+
+buscas %>% 
+    mutate(date = round_date(session_start_date, unit = "day")) %>%
+    count(date, group, num_clicks) %>%
+    ggplot(aes(x = num_clicks, y=n, fill = group)) +
+    geom_area() +
+    facet_wrap(~ date)
+
+buscas %>%
+  subset(select = c(session_start_date)) %>%
+  summary()
+```
+
+```{r}
+counting_by_date = buscas %>% 
+    mutate(date = round_date(session_start_date, unit = "day")) %>% 
+    count(date, group)
+
+counting_by_clicked = buscas %>%
+    mutate(date = round_date(session_start_date, unit = "day")) %>%
+    filter(num_clicks >= 1) %>%
+    count(date, group) %>%
+    merge(counting_by_date, by=c('date','group'))
+
+colnames(counting_by_clicked) <- c("date", "group", "clicked", "total_sessions")
+
+counting_by_clicked = counting_by_clicked %>%
+    mutate(clicks_rate=clicked/total_sessions)
+```
+
+## Resultados e discussão
+
+```{r}
+counting_by_clicked %>% 
+    ggplot(aes(x = date, y = clicks_rate, color = group)) +
+    geom_line() +
+    geom_point() +
+    facet_grid(~ group)
+
+counting_by_clicked %>% 
+    ggplot(aes(x= group, 
+               y = clicks_rate,
+               color= group)) +
+    geom_boxplot(varwidth=T) +
+    ggtitle("") +
+    xlab("") + 
+    ylab("") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+
+tapply(counting_by_clicked$clicks_rate,
+       counting_by_clicked$group,
+       median)
 ```
 
