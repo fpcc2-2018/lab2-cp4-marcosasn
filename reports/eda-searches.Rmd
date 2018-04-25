@@ -43,8 +43,6 @@ buscas = read_csv(here::here("data/search_data.csv")) #%>%
 ## Distribuição dos dados
 ### Visualizando as distribuições
 ```{r}
-#search_index quantidade de buscas na sessão
-
 #What is our daily overall clickthrough rate? How does it vary between the groups?
 #group
 #num_clicks
@@ -132,11 +130,40 @@ counting_by_clicked = buscas %>%
     count(date, group) %>%
     merge(counting_by_date, by=c('date','group'))
 
-colnames(counting_by_clicked) <- c("date", "group", "clicked", "total_sessions")
+colnames(counting_by_clicked) = c("date", "group", "clicked", "total_sessions")
 
 counting_by_clicked = counting_by_clicked %>%
     mutate(clicks_rate=clicked/total_sessions)
 ```
+
+```{r}
+#search_index quantidade de buscas na sessão
+
+#Which results do people tend to try first? How does it change day-to-day?
+
+buscas %>%
+    ggplot(aes(x= first_click)) + 
+    geom_histogram(binwidth = 20, fill = "white", color = "blue") + 
+    facet_grid(group ~ .)
+
+buscas %>%
+  subset(select = c(first_click)) %>%
+  summary()
+
+buscas %>% 
+    mutate(date = round_date(session_start_date, unit = "day")) %>%
+    ggplot(aes(x = group, y=first_click, color=group)) +
+    geom_point() +
+    scale_y_log10() +
+    facet_wrap(~ date)
+
+
+aux = buscas %>%
+    mutate(date = round_date(session_start_date, unit = "day")) %>%
+    filter(first_click != 'NA') %>%
+    count(date, group, first_click)
+```
+
 
 ## Resultados e discussão
 
