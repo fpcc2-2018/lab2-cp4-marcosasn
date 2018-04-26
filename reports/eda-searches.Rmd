@@ -34,8 +34,9 @@ theme_set(theme_bw())
 ## Coleção de dados
 
 ```{r ETL}
-buscas = read_csv(here::here("data/search_data.csv")) #%>%
-    #head(50000)
+#todas as sessões de buscas
+buscas = read_csv(here::here("data/search_data.csv")) %>%
+    mutate(day=round_date(session_start_date, unit = "day"))
 ```
 
 ## Contexto da pesquisa e questões de pesquisa
@@ -101,18 +102,16 @@ buscas %>%
 
 ```{r}
 buscas %>% 
-    mutate(date = round_date(session_start_date, unit = "day")) %>% 
-    count(date, group) %>% 
-    ggplot(aes(x = date, y = n, fill = group)) +
+    count(day, group) %>% 
+    ggplot(aes(x = day, y = n, fill = group)) +
     geom_area() +
     facet_grid(~ group)
 
 buscas %>% 
-    mutate(date = round_date(session_start_date, unit = "day")) %>%
-    count(date, group, num_clicks) %>%
-    ggplot(aes(x = num_clicks, y=n, fill = group)) +
+    count(day, group, num_clicks) %>%
+    ggplot(aes(x = num_clicks, y=n, fill=group)) +
     geom_area() +
-    facet_wrap(~ date)
+    facet_wrap(~ day)
 
 buscas %>%
   subset(select = c(session_start_date)) %>%
@@ -121,16 +120,16 @@ buscas %>%
 
 ```{r}
 counting_by_date = buscas %>% 
-    mutate(date = round_date(session_start_date, unit = "day")) %>% 
-    count(date, group)
+    distinct(session_id, .keep_all=TRUE) %>%
+    count(day, group) 
 
 counting_by_clicked = buscas %>%
-    mutate(date = round_date(session_start_date, unit = "day")) %>%
+    distinct(session_id, .keep_all=TRUE) %>%
     filter(num_clicks >= 1) %>%
-    count(date, group) %>%
-    merge(counting_by_date, by=c('date','group'))
+    count(day, group) %>%
+    merge(counting_by_date, by=c('day','group'))
 
-colnames(counting_by_clicked) = c("date", "group", "clicked", "total_sessions")
+colnames(counting_by_clicked) = c("day", "group", "clicked", "total_sessions")
 
 counting_by_clicked = counting_by_clicked %>%
     mutate(clicks_rate=clicked/total_sessions)
@@ -150,28 +149,33 @@ buscas %>%
   subset(select = c(first_click)) %>%
   summary()
 
+#paralelo results and first_click
+buscas %>%
+    ggplot(aes(x= first_click, y=results, color=group)) + 
+    geom_point() + 
+    facet_grid(~ group)
+
 buscas %>% 
-    mutate(date = round_date(session_start_date, unit = "day")) %>%
+    ggplot(aes(x = group, y=first_click, color=group)) +
+    geom_point() +
+    #scale_y_log10() +
+    facet_wrap(~ day)
+
+buscas %>% 
     ggplot(aes(x = group, y=first_click, color=group)) +
     geom_point() +
     scale_y_log10() +
-    facet_wrap(~ date)
-
-
-aux = buscas %>%
-    mutate(date = round_date(session_start_date, unit = "day")) %>%
-    filter(first_click != 'NA') %>%
-    count(date, group, first_click)
+    facet_wrap(~ day)
 ```
 
 
 ## Resultados e discussão
-
 ```{r}
 counting_by_clicked %>% 
-    ggplot(aes(x = date, y = clicks_rate, color = group)) +
+    ggplot(aes(x = day, y = clicks_rate, color = group)) +
     geom_line() +
     geom_point() +
+    geom_hline(yintercept=mean(counting_by_clicked$clicks_rate)) +
     facet_grid(~ group)
 
 counting_by_clicked %>% 
@@ -179,13 +183,24 @@ counting_by_clicked %>%
                y = clicks_rate,
                color= group)) +
     geom_boxplot(varwidth=T) +
-    ggtitle("") +
-    xlab("") + 
-    ylab("") +
-  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 
 tapply(counting_by_clicked$clicks_rate,
        counting_by_clicked$group,
        median)
+```
+
+```{r}
+aux = buscas %>%
+    filter(first_click != 'NA') %>%
+    group_by(day, group) %>%
+    summarise(median=mean(first_click))
+
+aux %>% 
+    ggplot(aes(x= group, 
+               y = median,
+               color= group)) +
+    geom_boxplot(varwidth=T) +
+    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 ```
 
