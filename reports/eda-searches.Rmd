@@ -119,6 +119,47 @@ buscas %>%
 ```
 
 ```{r}
+#search_index quantidade de buscas na sessão
+
+#Which results do people tend to try first? How does it change day-to-day?
+#first_click
+buscas %>%
+    ggplot(aes(x= first_click)) + 
+    geom_histogram(binwidth = 20, fill = "white", color = "blue") + 
+    facet_grid(group ~ .)
+
+#results
+buscas %>%
+    ggplot(aes(x= results)) + 
+    geom_histogram(binwidth = 20, fill = "white", color = "blue") + 
+    facet_grid(group ~ .)
+
+buscas %>%
+  subset(select = c(first_click, results)) %>%
+  summary()
+
+#paralelo results and first_click
+buscas %>% 
+    ggplot(aes(x = first_click, y=results, color=group)) +
+    geom_jitter(width = .2, alpha=.4) +
+    scale_y_log10() +
+    facet_wrap(~ day)
+```
+
+```{r}
+#What is our daily overall zero results rate? How does it vary between the groups?
+buscas %>%
+  filter(results == 0) %>%
+  count()
+
+buscas %>%
+  filter(results == 0) %>%
+  
+```
+
+## Resultados e discussão
+```{r}
+#What is our daily overall clickthrough rate? How does it vary between the groups?
 counting_by_date = buscas %>% 
     distinct(session_id, .keep_all=TRUE) %>%
     count(day, group) 
@@ -133,44 +174,7 @@ colnames(counting_by_clicked) = c("day", "group", "clicked", "total_sessions")
 
 counting_by_clicked = counting_by_clicked %>%
     mutate(clicks_rate=clicked/total_sessions)
-```
 
-```{r}
-#search_index quantidade de buscas na sessão
-
-#Which results do people tend to try first? How does it change day-to-day?
-
-buscas %>%
-    ggplot(aes(x= first_click)) + 
-    geom_histogram(binwidth = 20, fill = "white", color = "blue") + 
-    facet_grid(group ~ .)
-
-buscas %>%
-  subset(select = c(first_click)) %>%
-  summary()
-
-#paralelo results and first_click
-buscas %>%
-    ggplot(aes(x= first_click, y=results, color=group)) + 
-    geom_point() + 
-    facet_grid(~ group)
-
-buscas %>% 
-    ggplot(aes(x = group, y=first_click, color=group)) +
-    geom_point() +
-    #scale_y_log10() +
-    facet_wrap(~ day)
-
-buscas %>% 
-    ggplot(aes(x = group, y=first_click, color=group)) +
-    geom_point() +
-    scale_y_log10() +
-    facet_wrap(~ day)
-```
-
-
-## Resultados e discussão
-```{r}
 counting_by_clicked %>% 
     ggplot(aes(x = day, y = clicks_rate, color = group)) +
     geom_line() +
@@ -191,16 +195,22 @@ tapply(counting_by_clicked$clicks_rate,
 ```
 
 ```{r}
-aux = buscas %>%
+#Which results do people tend to try first? How does it change day-to-day?
+first_click_clustered = buscas %>%
     filter(first_click != 'NA') %>%
     group_by(day, group) %>%
-    summarise(median=mean(first_click))
+    summarise(median=median(first_click))
 
-aux %>% 
+first_click_clustered %>% 
     ggplot(aes(x= group, 
                y = median,
                color= group)) +
     geom_boxplot(varwidth=T) +
     theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+```
+
+
+```{r}
+#What is our daily overall zero results rate? How does it vary between the groups?
 ```
 
