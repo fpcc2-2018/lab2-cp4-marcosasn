@@ -13,10 +13,6 @@ output:
     -webkit-column-count:2;}
 </style>
 
-O objeto principal da análise são as buscas e a navegação depois da busca. Criamos esses dados a partir dos dados originais da wikimedia em `/data/search_data.csv`. 
-
-Aqui, exploramos esses dados. 
-
 ```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
 knitr::opts_chunk$set(fig.align="center", fig.width=7, fig.height=4)
 knitr::opts_chunk$set(warning = FALSE)
@@ -33,13 +29,25 @@ theme_set(theme_bw())
 
 ## Coleção de dados
 
+Nossa iniciativa de investigar como são as buscas no Wikimidia iniciou realizando a coleta dos dados. Os dados foram coletados por meio do registro de logs de eventos disponibilizados pela própria Wikimidia na [internet](https://github.com/wikimedia-research/Discovery-Hiring-Analyst-2016). Primeiramente, um refinamento dos dados foi realizado com o objetivo de gerar novas variáveis que pudessem extrair algumas informações valiosas. Tais variáveis, foram utilizadas como fonte de informação para investigar as questões de pesquisa deste relatório. 
+
 ```{r ETL}
-#todas as sessões de buscas
+#todas as buscas e navegações de busca
 buscas = read_csv(here::here("data/search_data.csv")) %>%
     mutate(day=round_date(session_start_date, unit = "day"))
 ```
 
 ## Contexto da pesquisa e questões de pesquisa
+
+Este relatório tem como objetivo responder algumas questões importantes das buscas no Wikimidia. Nós observamos como se comportaram as buscas e as navegações considerando duas categorias principais. Essas categorias diferenciam dois grupos principais de sessões de usuários durante buscas no Wikimidia. Nosso relatório é animado pelas seguintes questões de pesquisa (QP):
+
+**QP1:** Qual é a taxa de cliques geral diária? Como ela varia entre os grupos A e B?
+
+**QP2:** Quais resultados os usuários tendem a tentar primeiro? Como isso muda no dia-a-dia?
+
+**QP3:** Qual é a taxa de resultados zero geral diária? Como ela varia entre os grupos A e B?
+
+**QP4:** Vamos assumir que a duração da sessão seja aproximadamente o tempo entre o primeiro evento e o último evento na sessão. Como a duração da sessão se relaciona com o seu dia?
 
 ## Distribuição dos dados
 ### Visualizando as distribuições
@@ -53,30 +61,14 @@ buscas = read_csv(here::here("data/search_data.csv")) %>%
 ```{r}
 #group
 buscas %>% 
-    group_by(group) %>% 
-    summarise(n = n()) %>% 
-    ggplot(aes(x = group, y = n, color=group)) + 
-    geom_col(fill="white") +
-    ggtitle("Distribuição da frequência do grupo da sessão") +
-    xlab("Grupo") + 
-    ylab("Frequência") +
-  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
-
-buscas %>%
-  subset(select = c(group)) %>%
-  summary()
+    count(day, group) %>% 
+    ggplot(aes(x = day, y = n, fill = group)) +
+    geom_area() +
+    facet_grid(~ group)
 ```
 
 ```{r}
 #num_clicks
-buscas %>% 
-    ggplot(aes(x = group, y = num_clicks)) + 
-    geom_jitter(aes(alpha = .4, width = .2, size = .8, color = group)) +
-    ggtitle("Distribuição da quantidade de cliques") +
-    xlab("Grupo") + 
-    ylab("Quantidade de cliques") +
-  theme(plot.title = element_text(hjust = 0.5), legend.position="none")
-
 buscas %>% 
     ggplot(aes(x = group, y = num_clicks)) + 
     geom_jitter(aes(alpha = .4, width = .2, size = .8, color = group)) +
@@ -94,19 +86,9 @@ buscas %>%
     xlab("Quantidade de cliques") + 
     ylab("Frequência") +
   theme(plot.title = element_text(hjust = 0.5), legend.position="none")
-
-buscas %>%
-  subset(select = c(num_clicks)) %>%
-  summary()
 ```
 
 ```{r}
-buscas %>% 
-    count(day, group) %>% 
-    ggplot(aes(x = day, y = n, fill = group)) +
-    geom_area() +
-    facet_grid(~ group)
-
 buscas %>% 
     count(day, group, num_clicks) %>%
     ggplot(aes(x = num_clicks, y=n, fill=group)) +
@@ -114,7 +96,7 @@ buscas %>%
     facet_wrap(~ day)
 
 buscas %>%
-  subset(select = c(session_start_date)) %>%
+  subset(select = c(group, num_clicks, session_start_date)) %>%
   summary()
 ```
 
@@ -140,6 +122,7 @@ buscas %>%
 
 #paralelo results and first_click
 buscas %>% 
+    filter(first_click != 'NA') %>%
     ggplot(aes(x = first_click, y=results, color=group)) +
     geom_jitter(width = .2, alpha=.4) +
     scale_y_log10() +
@@ -149,68 +132,127 @@ buscas %>%
 ```{r}
 #What is our daily overall zero results rate? How does it vary between the groups?
 buscas %>%
-  filter(results == 0) %>%
-  count()
+    ggplot(aes(x=group, y=results, color=group)) +
+    geom_jitter(width = .2, alpha=.4) +
+    facet_wrap(~ day)
 
 buscas %>%
-  filter(results == 0) %>%
-  
+    filter(results == 0) %>%
+    count(day, group) %>%
+    ggplot(aes(x=group, y=n, color=group)) +
+    geom_col(fill="white") +
+    facet_wrap(~ day)
+```
+```{r}
+buscas %>%
+    group_by(session_id) %>%
+    mutate(session_length=as.numeric(max(session_start_date)-min(session_start_date),units="days")) %>%
+    ggplot(aes(x=group,
+               y=session_length,
+               color=group)) +
+    geom_point() +
+    facet_wrap(~ day)
+
 ```
 
 ## Resultados e discussão
 ```{r}
 #What is our daily overall clickthrough rate? How does it vary between the groups?
-counting_by_date = buscas %>% 
+all_sessions = buscas %>%
     distinct(session_id, .keep_all=TRUE) %>%
     count(day, group) 
 
-counting_by_clicked = buscas %>%
-    distinct(session_id, .keep_all=TRUE) %>%
+clicked_sessions = buscas %>%
     filter(num_clicks >= 1) %>%
+    distinct(session_id, .keep_all=TRUE) %>%
     count(day, group) %>%
-    merge(counting_by_date, by=c('day','group'))
+    merge(all_sessions, by=c('day','group'))
 
-colnames(counting_by_clicked) = c("day", "group", "clicked", "total_sessions")
+colnames(clicked_sessions) = c("day", "group", "clicked_sessions", "all_sessions")
 
-counting_by_clicked = counting_by_clicked %>%
-    mutate(clicks_rate=clicked/total_sessions)
+clicked_sessions = clicked_sessions %>%
+    mutate(click_rate=clicked_sessions/all_sessions)
 
-counting_by_clicked %>% 
-    ggplot(aes(x = day, y = clicks_rate, color = group)) +
+clicked_sessions %>% 
+    ggplot(aes(x = day, y = click_rate, color = group)) +
     geom_line() +
     geom_point() +
-    geom_hline(yintercept=mean(counting_by_clicked$clicks_rate)) +
     facet_grid(~ group)
 
-counting_by_clicked %>% 
+clicked_sessions %>% 
     ggplot(aes(x= group, 
-               y = clicks_rate,
+               y = click_rate,
                color= group)) +
     geom_boxplot(varwidth=T) +
     theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 
-tapply(counting_by_clicked$clicks_rate,
-       counting_by_clicked$group,
+tapply(clicked_sessions$click_rate,
+       clicked_sessions$group,
        median)
 ```
 
 ```{r}
 #Which results do people tend to try first? How does it change day-to-day?
-first_click_clustered = buscas %>%
+buscas %>% 
+    filter(first_click != 'NA') %>%
+    ggplot(aes(x = group, y = first_click, color=group)) +
+    geom_boxplot(varwidth = T) +
+    scale_y_log10() +
+    facet_wrap(~ day)
+
+first_click_time = buscas %>%
     filter(first_click != 'NA') %>%
     group_by(day, group) %>%
-    summarise(median=median(first_click))
+    summarise(first_click=max(first_click))
 
-first_click_clustered %>% 
-    ggplot(aes(x= group, 
-               y = median,
-               color= group)) +
-    geom_boxplot(varwidth=T) +
-    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+#first_click considering their highest values
+first_click_time %>% 
+    ggplot(aes(x = day, y = first_click, color = group)) +
+    geom_line() +
+    geom_point() +
+    facet_grid(~ group)
 ```
 
 
 ```{r}
 #What is our daily overall zero results rate? How does it vary between the groups?
+all_sessions = buscas %>%
+    count(day, group)
+
+zero_results_sessions = buscas %>%
+    filter(results == 0) %>%
+    count(day, group) %>%
+    merge(all_sessions, by=c('day','group'))
+
+colnames(zero_results_sessions) = c("day", "group", "zero_results_sessions", "all_sessions")
+
+zero_results_sessions = zero_results_sessions %>%
+    mutate(zero_rate=zero_results_sessions/all_sessions)
+
+zero_results_sessions %>% 
+    ggplot(aes(x = day, y = zero_rate, color = group)) +
+    geom_line() +
+    geom_point() +
+    facet_grid(~ group)
+
+zero_results_sessions %>% 
+    ggplot(aes(x= group, 
+               y = zero_rate,
+               color= group)) +
+    geom_boxplot(varwidth=T) +
+    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+```
+
+```{r}
+#Let session length be approximately the time between the first event and the last event in a session. Choose a variable from the dataset and describe its relationship to session length. Visualize the relationship.
+
+buscas %>%
+    group_by(session_id) %>%
+    mutate(session_length=as.numeric(max(session_start_date)-min(session_start_date),units="days")) %>%
+    ggplot(aes(x=day,
+               y=session_length,
+               color=group)) +
+    geom_point() +
+    facet_wrap(~ group)
 ```
 
