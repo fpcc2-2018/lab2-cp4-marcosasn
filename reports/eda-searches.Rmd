@@ -39,7 +39,7 @@ buscas = read_csv(here::here("data/search_data.csv")) %>%
 
 ## Contexto da pesquisa e questões de pesquisa
 
-Este relatório tem como objetivo responder algumas questões importantes das buscas no Wikimidia. Nós observamos como se comportaram as buscas e as navegações de buscas considerando duas categorias principais. Essas categorias diferenciam dois grupos principais de sessões de usuários durante buscas e navegações realizadas no Wikimidia. Nosso relatório é animado pelas seguintes questões de pesquisa (QP):
+Este relatório tem como objetivo responder algumas questões importantes das buscas no Wikimidia. Nós observamos como se comportam as buscas e as navegações de buscas considerando duas categorias principais. Essas categorias diferenciam dois grupos principais de sessões de usuários durante buscas e navegações. Nosso relatório é animado pelas seguintes questões de pesquisa (QP):
 
 **QP1:** Qual é a taxa de cliques geral diária? Como ela varia entre os grupos A e B?
 
@@ -47,7 +47,7 @@ Este relatório tem como objetivo responder algumas questões importantes das bu
 
 **QP3:** Qual é a taxa de resultados zero geral diária? Como ela varia entre os grupos A e B?
 
-**QP4:** Vamos assumir que a duração da sessão seja aproximadamente o tempo entre o primeiro evento e o último evento na sessão. Como a duração da sessão se relaciona com o seu dia?
+**QP4:** Vamos assumir que a duração da sessão seja aproximadamente o tempo entre o primeiro evento e o último evento da sessão. Como a duração da sessão se relaciona com o o número de cliques?
 
 ## Distribuição dos dados
 
@@ -55,7 +55,7 @@ Como um passo inicial, nós realizamos a exploração e a descrição das variá
 
 ### Visualizando as distribuições das variáveis de QP1
 
-Com o objetivo de responder **QP1**, nós utilizamos três variáveis presentes no nosso data set: *group*, *num_clicks* e *session_start_date*. A medida *group* fornece a identificação do grupo da sessão de busca. Tal medida é dada em termos de uma medida de resumo para dados de natureza nominal: a primeira observação do grupo observada na sessão. A contagem de incidência de *group* nos permitiu descobrir quantas observações de buscas foram observadas em cada grupo. No gráfico de barras abaixo, nós podemos perceber que a maioria das buscas observadas em nosso data set são referentes ao grupo A. A maioria das observações realizadas entre os dias 1º de março até 9º de março são do grupo A. Além disso, o grupo A também mostra ter obtido três picos de buscas durante estes dias nos dias 2, 4 e 8 de março em relação ao grupo B. Nós observamos no total 136234 registros de buscas no Wikimidia.
+Com o objetivo de responder **QP1**, nós utilizamos três variáveis presentes no nosso data set: *group*, *num_clicks* e *session_start_date*. A medida *group* fornece a identificação do grupo da sessão de busca. Tal medida é dada em termos de uma medida de resumo para dados de natureza nominal: a primeira observação do grupo observada na sessão. A contagem de incidência de *group* nos permitiu descobrir quantas observações de buscas foram coletadas em cada grupo. Nós pudemos observar que a maioria das observações realizadas entre os dias 1º até 9º de março são do grupo A. De fato, a área sob a curva do gráfico do grupo A abaixo, é ligeiramente maior que a área sob a curva do gráfico do grupo B. Além disso, o grupo A também mostra ter obtido três picos de buscas durante estes dias (2, 4 e 8 de março) em relação ao grupo B. Nós observamos no total 136234 registros de buscas realizadas no Wikimidia.
 
 ```{r}
 buscas %>%
@@ -71,7 +71,7 @@ buscas %>%
     geom_area() +
     labs(title ="Distribuição da quantidade de buscas por dia",
          x="Dia",
-         y="Frequência",
+         y="Buscas",
          color="Grupo") +
     facet_grid(~ group) +
     theme(plot.title = element_text(hjust = 0.5), legend.position="none")
@@ -197,19 +197,20 @@ buscas %>%
 
 ### Visualizando as distribuições das variáveis de QP4
 
-Com o objetivo de responder **QP3** nós construimos uma nova variável chamada *session_length*. Esta variável basicamente informa quanto tempo durou a sessão de busca do usuário. Nós pudemos observar que, quando a duração das sessões dos grupos A e B não são as mesmas, as sessões do grupo A são mais demoradas do que no grupo B.
+Com o objetivo de responder **QP3** nós construimos uma nova variável chamada *session_length*. Esta variável basicamente informa quanto tempo durou a sessão de busca do usuário. Nós pudemos observar, quanto à duração das sessões dos grupos A e B, que elas não são as mesmas. De fato, as sessões do grupo A são mais demoradas do que no grupo B. Isto é claramente visível pelos extremos de durações observados no gráfico abaixo nos dias 3, 4, 7, 8 e 9 de março. Além disso, nós também pudemos observar quanto a concentração que, a maior parte das durações se concentra em torno de 0 segundos.
 ```{r}
 buscas %>%
     group_by(session_id) %>%
-    mutate(session_length=as.numeric(max(session_start_date)-min(session_start_date),units="days")) %>%
+    mutate(session_length=as.numeric(max(session_start_date)-min(session_start_date),
+                                     units="days")) %>%
     ggplot(aes(x=group,
                y=session_length,
                color=group)) +
     geom_point() +
     facet_wrap(~ day) +
-    ggtitle("Distribuição da quantidade de resultados por dia") +
+    ggtitle("Distribuição da duração da sessão por dia") +
     xlab("Grupo") + 
-    ylab("Resultados") +
+    ylab("Duração") +
     theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 
 ```
@@ -342,17 +343,33 @@ zero_results_sessions %>%
     theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 ```
 
-
+Com o objetivo de responder **QP4**, nós observamos como a distribuição da duração da sessão de busca se relaciona com o número de cliques do usuário. Os dados reveleram que não há uma relação forte entre estas variáveis. De fato, nós pudemos observar que, o tamanho da duração da sessão não cresce ou diminui a medida que o número de cliques do usuário aumenta. 
 ```{r}
 #Let session length be approximately the time between the first event and the last event in a session. Choose a variable from the dataset and describe its relationship to session length. Visualize the relationship.
-
-buscas %>%
+buscas = buscas %>%
     group_by(session_id) %>%
-    mutate(session_length=as.numeric(max(session_start_date)-min(session_start_date),units="days")) %>%
-    ggplot(aes(x=day,
+    mutate(session_length=as.numeric(max(session_start_date)-min(session_start_date),
+                                     units="days")) 
+buscas %>%
+    ggplot(aes(x=num_clicks,
                y=session_length,
                color=group)) +
     geom_point() +
-    facet_wrap(~ group)
+    facet_wrap(~ group) +
+    labs(title="Distribuição da duração da sessão",
+         x="Dia", y="Duração") +
+    theme(plot.title = element_text(hjust = 0.5))
 ```
 
+Com o objetivo de medir essa relação, nós utilizamos o cálculo dos coeficientes de correlação. Os resultados mostram a existência de uma relação monotônica inversa e fraca entre as variáveis tanto para o grupo A (spearman’s rho de -0.227) quanto para o grupo B (Spearman's rho de -0.134). Em resposta a **QP4**, podemos concluir com base nos dados que, existe uma relação entre a duração da sessão e a quantidade de cliques. No entanto, essa relação é inversa e muito fraca.
+```{r}
+buscas %>% 
+  group_by(group) %>% 
+  summarise(pearson = cor(num_clicks, session_length, method = "pearson"), 
+            spearman = cor(num_clicks, session_length, method = "spearman"),
+            kendall = cor(num_clicks, session_length, method = "kendall"))
+```
+
+## Conclusão
+
+Este relatório tinha como objetivo identificar como são as buscas no Wikimidia. Nós pudemos investigar vários aspectos das buscas considerando duas categorias principais. Nós observamos que existe uma diferença entre os grupos A e B quanto à proporção de sessões de buscas diárias com clique. Além disso, essas taxas apresentam uma maior variação no grupo B. Mais importante, os resultados revelaram que os usuários tendem a experimentar primeiro os resultados mostrados no topo da lista de resultados. Considerando o pior caso, os usuários do grupo A tendem a experimentar os maiores índices retornados pela máquina de busca. No que toca aos resultados pudemos observar que existe uma diferença entre os grupos A e B quanto a proporção de buscas diárias com resultados iguais a zero. Além disso, essas taxas apresentam uma maior variação no grupo A. Finalmente, podemos concluir que, de fato, existe uma relação entre a duração da sessão e a quantidade de cliques. No entanto, essa relação é inversa e relevantemente fraca. É importante destacar que os resultados levam em consideração valores pontuais. Neste sentido, pode ser interessante comprovar ambos os resultados com base estatística.
