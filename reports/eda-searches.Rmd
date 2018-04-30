@@ -67,16 +67,17 @@ buscas %>%
 #group
 buscas %>% 
     count(day, group) %>% 
-    ggplot(aes(x = day, y = n, fill = group)) +
+    ggplot(aes(x=day, y=n, fill=group)) +
     geom_area() +
-    ggtitle("Distribuição da quantidade de buscas por dia") +
-    xlab("Frequência") + 
-    ylab("Dia") +
+    labs(title ="Distribuição da quantidade de buscas por dia",
+         x="Dia",
+         y="Frequência",
+         color="Grupo") +
     facet_grid(~ group) +
-    theme(plot.title = element_text(hjust = 0.5))
+    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
     
 ```
-A medida *num_clicks*, por outro lado, fornece uma ideia da quantidade de clicks realizados pelos usuários durante cada sessão. Tal medida é capaz de fornecer informações com respeito ao interesse do usuário quando uma lista de índices lhe é apresentada durante uma busca. No gráfico abaixo, podemos observar segundo a distribuição da quantidade de clicks pontos importantes quanto centralidade, extremos, concentração e simetria. Quanto a concentração, podemos observar no gráfico de pontos abaixo, uma concentração bastante representativa de quantidade de clicks entre 0-10 pela escala logarítimica. Quanto aos extremos, podemos observar ligeiramente uma alta quantidade de clicks (36) no grupo A. Ainda sobre valores extremos, podemos perceber uma alta quantidade de sessões de busca onde os usuários não realizaram nenhum click em ambos os grupos.
+A medida *num_clicks*, por outro lado, fornece uma ideia da quantidade de cliques realizados pelos usuários durante cada sessão. Tal medida é capaz de fornecer informações com respeito ao interesse do usuário quando uma lista de índices lhe é apresentada durante uma busca. No gráfico abaixo, podemos observar segundo a distribuição da quantidade de cliques pontos importantes quanto centralidade, extremos, concentração e simetria. Quanto a concentração, podemos observar no gráfico de pontos abaixo, uma concentração bastante representativa de quantidade de cliques entre 0-10 pela escala logarítimica. Quanto aos extremos, podemos observar ligeiramente uma alta quantidade de cliques (36) no grupo A. Ainda sobre valores extremos, podemos perceber uma alta quantidade de sessões de busca onde os usuários não realizaram nenhum clique em ambos os grupos.
 
 ```{r}
 buscas %>%
@@ -96,7 +97,7 @@ buscas %>%
   theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 ```
 
-O gráfico de histograma abaixo, corrobora com nossas conclusões. Existe pouca variação das quantidades de clicks. Isso é facilmente notado pela a alta concentração de quantidade de clicks a esquerda. No entanto, é importante também notar a incidência de quantidade de clicks não usuais pelo enviesamento para a direita do gráfico. Como consequência, dentre as quantidades mais frequentes de clicks temos 0-2. Pode-se dizer que, no geral, a maioria das buscas que ocorrem no Wikimidia possuem até 4 clicks, independente do grupo da sessão.
+O gráfico de histograma abaixo, corrobora com nossas conclusões. Existe pouca variação das quantidades de cliques. Isso é facilmente notado pela a alta concentração de quantidade de cliques a esquerda. No entanto, é importante também notar a incidência de quantidade de cliques não usuais pelo enviesamento para a direita do gráfico. Como consequência, dentre as quantidades mais frequentes de cliques temos 0-2. Pode-se dizer que, no geral, a maioria das buscas que ocorrem no Wikimidia possuem até 4 cliques, independente do grupo da sessão.
 ```{r}
 buscas %>% 
     ggplot(aes(x= num_clicks)) + 
@@ -108,16 +109,17 @@ buscas %>%
   theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 ```
 
-Ainda, nós observamos como a frequência da quantidade diária de clicks se comporta no decorrer dos dias. Nós podemos observar no gráfico abaixo praticamente as mesmas conclusões acima. O gráfico abaixo mostra que a contagem da quantidade de clicks são praticamente as mesmas durante todos os dias de observação. É importante ter em mente que, os dias 1 e 9 de março apresentam as menores quantidades por um simples motivo. Nestes dias, a observação das buscas não foi feita durante 24h. 
+Ainda, nós observamos como a frequência da quantidade diária de cliques se comporta no decorrer dos dias. Nós podemos observar no gráfico abaixo praticamente as mesmas conclusões acima. O gráfico abaixo mostra que a contagem da quantidade de cliques são praticamente as mesmas durante todos os dias de observação. É importante ter em mente que, os dias 1 e 9 de março apresentam as menores quantidades por um simples motivo. Nestes dias, a observação das buscas não foi feita durante 24h. 
 ```{r}
 buscas %>% 
     count(day, group, num_clicks) %>%
     ggplot(aes(x = num_clicks, y=n, fill=group)) +
     geom_area() +
     facet_wrap(~ day) +
-    ggtitle("Distribuição da frequência da quantidade de clicks por dia") +
-    xlab("Quantidade de clicks") + 
-    ylab("Frequência") +
+    labs(title ="Distribuição da frequência da quantidade de cliques por dia",
+         x="Quantidade de cliques",
+         y="Frequência",
+         fill="Grupo") +
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
@@ -164,9 +166,7 @@ buscas %>%
     geom_jitter(width = .2, alpha=.4) +
     scale_y_log10() +
     facet_wrap(~ day) +
-    ggtitle("Distribuição do índice do clique e a quantidade de resultados por dia") +
-    xlab("Índice do clique") + 
-    ylab("Quantidade de resultados") +
+    labs(title="Distribuição do índice do clique e a quantidade de resultados por dia", x="Índice do clique", y="Quantidade de resultados", color="Grupo") +
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
@@ -179,10 +179,8 @@ buscas %>%
     geom_jitter(width = .2, alpha=.4) +
     facet_wrap(~ day) +
     scale_y_log10() +
-    ggtitle("Distribuição da quantidade de resultados por dia") +
-    xlab("Grupo") + 
-    ylab("Resultados") +
-    theme(plot.title = element_text(hjust = 0.5))
+    labs(title="Distribuição da quantidade de resultados por dia", x="Grupo", y="Resultados", color="Grupo") +
+    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 ```
 
 Também, nós contamos a incidência de buscas com a quantidade de resultados igual a zero e verificamos que o grupo A supera o grupo B. Os gráficos abaixo revelaram que, idependente do dia, as bucas realizadas pelo grupo B possuem menos quantidaded de resultados iguais a zero.
@@ -193,10 +191,8 @@ buscas %>%
     ggplot(aes(x=group, y=n, color=group)) +
     geom_col(fill="white") +
     facet_wrap(~ day) +
-    ggtitle("Distribuição da quantidade de resultados por dia") +
-    xlab("Grupo") + 
-    ylab("Resultados") +
-    theme(plot.title = element_text(hjust = 0.5))
+    labs(title="Distribuição da quantidade de resultados por dia", x="Grupo", y="Resultados", color="Grupo") +
+    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 ```
 
 ### Visualizando as distribuições das variáveis de QP4
@@ -214,7 +210,7 @@ buscas %>%
     ggtitle("Distribuição da quantidade de resultados por dia") +
     xlab("Grupo") + 
     ylab("Resultados") +
-    theme(plot.title = element_text(hjust = 0.5))
+    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 
 ```
 
@@ -242,7 +238,10 @@ clicked_sessions %>%
     ggplot(aes(x = day, y = click_rate, color = group)) +
     geom_line() +
     geom_point() +
-    facet_grid(~ group)
+    facet_grid(~ group) +
+    labs(title="Distribuição das proporções de sessões", x="Dia",
+         y="Proporção", color="Grupo") +
+    theme(plot.title = element_text(hjust = 0.5))
 ```
 O gráfico de box-plot abaixo, corrobora com nossas conclusões. De fato, as proporções de sessões de buscas do grupo A são ligeiramente superiores as do grupo B. Nós observamos que as sessões do grupo A (0.6675462) apresentam maior mediana de proporções em relação as sessões do grupo B (0.1883013). Em resposta a **QP1**, podemos concluir com base nos dados que, existe uma diferença entre os grupos A e B quanto a proporção de sessões de buscas diárias com clique. Além disso, essas taxas apresentam uma maior variação no grupo B. Isso é facilmente notado pela altura do box-plot de B em relação à A.
 ```{r}
@@ -250,16 +249,23 @@ tapply(clicked_sessions$click_rate,
        clicked_sessions$group,
        median)
 ```
-
 ```{r}
 clicked_sessions %>% 
     ggplot(aes(x= group, 
                y = click_rate,
                color= group)) +
     geom_boxplot(varwidth=T) +
+    labs(title="Distribuição da proporção de buscas",
+         x="Grupo", y="Proporção") +
     theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 ```
 
+Com o objetivo de responder **QP2**, nós observamos a distribuição da variável de *first_click*. Nós pudemos observar no gráfico abaixo que, apesar de alguns outliers, as buscas realizadas em ambas os grupos possuem os mesmos valores medianos do índice de primeiro clique (1). Isto quer dizer que, independente do grupo de busca, os usuários tendem a tentar os primeiros índices mostrados pela máquina de busca. Além disso, vale observar que, este comportamento é mantido pelos usuários independente do dia de observação. Em resposta a **QP2**, podemos concluir com base nos dados que, os resultados que os usuários tendem a experimentar primeiro são os mostrados no topo da lista de resultados. Também, esse comportamento é mantido independente do dia da observação.
+```{r}
+tapply(buscas$first_click,
+       buscas$group,
+       median, na.rm=TRUE)
+```
 ```{r}
 #Which results do people tend to try first? How does it change day-to-day?
 buscas %>% 
@@ -267,8 +273,14 @@ buscas %>%
     ggplot(aes(x = group, y = first_click, color=group)) +
     geom_boxplot(varwidth = T) +
     scale_y_log10() +
-    facet_wrap(~ day)
+    facet_wrap(~ day) +
+    labs(title="Distribuição do índice do primeiro clique", x="Grupo",
+         y="Índice do primeiro clique") +
+    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+```
 
+Com o objetivo de estudar não só o caso médio mas também o pior caso, nós conduzimos uma investigação com base nos valores máximos da variável de *first_click*. Nesta análise, os dados revelaram que, os usuários do grupo A, tendem a experimentar os maiores índices retornados pela máquina de busca. De fato, no gráfico abaixo da linha do tempo, pudemos observar que as buscas no grupo A obtiveram altos valores de índice experimentados pelo usuário nos dias 2, 4 e 6 de março.
+```{r}
 first_click_time = buscas %>%
     filter(first_click != 'NA') %>%
     group_by(day, group) %>%
@@ -279,9 +291,13 @@ first_click_time %>%
     ggplot(aes(x = day, y = first_click, color = group)) +
     geom_line() +
     geom_point() +
-    facet_grid(~ group)
+    facet_grid(~ group)  +
+    labs(title="Distribuição do índice do primeiro clique", x="Dia",
+         y="Índice do primeiro clique") +
+    theme(plot.title = element_text(hjust = 0.5))
 ```
 
+Com o objetivo de responder **QP3**, nós observamos a distribuição das proporções de buscas com zero resultados sobre duas perspectivas: tempo e distribuição. Na perspectiva de tempo os dados revelaram que, as proporções de buscas diárias que retornaram zero resultados tem três grandes piores momentos no grupos A. De fato, podemos observar três picos de alta proporções de resultados iguais a zero nos dias 1, 3 e 9 de março. O grupo B, por outro lado, apresenta apenas dois piores momentos e se mantém superior as proporções do grupo A. O gráfico de linha do tempo abaixo, mostra isso claramente.
 
 ```{r}
 #What is our daily overall zero results rate? How does it vary between the groups?
@@ -302,15 +318,30 @@ zero_results_sessions %>%
     ggplot(aes(x = day, y = zero_rate, color = group)) +
     geom_line() +
     geom_point() +
-    facet_grid(~ group)
+    facet_grid(~ group) +
+    labs(title="Distribuição das proporções de buscas", x="Dia",
+         y="Proporção", color="Grupo") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
 
+O gráfico de box-plot abaixo, corrobora com nossas conclusões. De fato, olhando sobre a perspectiva de distribuição, as proporções de buscas do grupo A são ligeiramente um pouco inferiores as do grupo B. Nós observamos que as buscas do grupo B (0.1844375) apresentam maior mediana de proporções em relação as buscas do grupo A (0.1812632). Em resposta a **QP3**, podemos concluir com base nos dados que, existe uma diferença entre os grupos A e B quanto a proporção de buscas diárias com resultados iguais a zero. Além disso, essas taxas apresentam uma maior variação no grupo A. Isso é facilmente notado pela altura do box-plot de A em relação à B.
+```{r}
+tapply(zero_results_sessions$zero_rate,
+       zero_results_sessions$group,
+       median)
+```
+
+```{r}
 zero_results_sessions %>% 
     ggplot(aes(x= group, 
                y = zero_rate,
                color= group)) +
     geom_boxplot(varwidth=T) +
+    labs(title="Distribuição das proporções de buscas",
+         x="Grupo", y="Proporção") +
     theme(plot.title = element_text(hjust = 0.5), legend.position="none")
 ```
+
 
 ```{r}
 #Let session length be approximately the time between the first event and the last event in a session. Choose a variable from the dataset and describe its relationship to session length. Visualize the relationship.
