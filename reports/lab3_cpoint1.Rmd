@@ -1,0 +1,269 @@
+---
+title: "Lab 3 - Checkpoint 1"
+author: "Marcos Nascimento (marcosantonio@copin.ufcg.edu.br)"
+date: "Maio 13, 2018"
+output:
+  html_document:
+    df_print: paged
+---
+
+<style>
+    body {text-align: justify;
+    font-family: "Times New Roman";
+    -webkit-column-count:2;}
+</style>
+
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(fig.align="center", fig.width=7, fig.height=4)
+knitr::opts_chunk$set(warning = FALSE)
+
+library(tidyverse)
+library(here)
+library(lubridate)
+library(shiny)
+library(plotly)
+library(boot)
+theme_set(theme_bw())
+```
+
+# Como são as buscas no Wikimedia?
+
+## Coleção de dados
+
+Nossa iniciativa de investigar como são as buscas no Wikimedia iniciou realizando a coleta dos dados. Os dados foram coletados por meio do registro de logs de eventos disponibilizados pela própria Wikimedia na [internet](https://github.com/wikimedia-research/Discovery-Hiring-Analyst-2016). Primeiramente, um refinamento dos dados foi realizado com o objetivo de gerar novas variáveis que pudessem extrair algumas informações valiosas. Tais variáveis, foram utilizadas como fonte de informação para investigar as questões de pesquisa deste relatório. 
+
+```{r ETL}
+#todas as buscas e navegações de busca
+buscas = read_csv(here::here("data/search_data.csv")) %>%
+    mutate(day=round_date(session_start_date, unit = "day"))
+```
+
+## Contexto da pesquisa e questões de pesquisa
+
+Este relatório tem como objetivo responder algumas outras questões importantes das buscas no Wikimedia. Diferentemente do relatório [anteiror](http://rpubs.com/marcosasn/385251), nós agora desejamos observar como se comportam algumas estimativas das buscas e as navegações de buscas considerando as duas categorias principais observadas. Essa análise vai permitir identificar diferenças significativas entre os dois grupos principais de sessões de usuários. Nosso relatório é animado pelas seguintes questões de pesquisa (QP):
+
+**QP1:** Existe diferença significativa da taxa de cliques geral diária entre os grupos A e B?
+
+**QP2:** Existe diferença significativa do índice dos resultados que os usuários tendem a tentar primeiro nos grupos A e B?
+
+**QP3:** Existe diferença significativa da taxa de resultados iguais a zero entre os grupos A e B?
+
+**QP4:** O que acontece, para a **QP1**, se nós compararmos a metade das sessões do grupo A (escolhida aleatoriamente) com outra metade das sessões do grupo A?
+
+## Resultados e discussão
+
+```{r}
+all_sessions = buscas %>%
+    distinct(session_id, .keep_all=TRUE) %>%
+    count(day, group) 
+
+clicked_sessions = buscas %>%
+    filter(num_clicks >= 1) %>%
+    distinct(session_id, .keep_all=TRUE) %>%
+    count(day, group) %>%
+    merge(all_sessions, by=c('day','group'))
+
+colnames(clicked_sessions) = c("day", "group", "clicked_sessions", "all_sessions")
+
+clicked_sessions = clicked_sessions %>%
+    mutate(click_rate=clicked_sessions/all_sessions)
+```
+
+```{r}
+clicked_sessions %>% 
+    ggplot(aes(x= group, 
+               y = click_rate,
+               color= group)) +
+    geom_boxplot(varwidth=T) +
+    labs(title="Distribuição das proporções de sessões",
+         x="Grupo", y="Proporção") +
+    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+
+bootstrap_func <- function(dado, indices){
+    d = dado %>% 
+      slice(indices) %>% 
+      group_by(group) %>% 
+      summarise(median_group = median(click_rate)) %>% 
+      pull(median_group)
+    
+    return(d[1] - d[2])
+}
+
+bootstraps <- boot(data = clicked_sessions, 
+                   statistic = bootstrap_func,
+                   R = 2000) # número de bootstraps
+
+glimpse(bootstraps$t)
+boot.ci(bootstraps, conf = 0.95, type = "bca")
+```
+
+```{r}
+results = buscas %>%
+    filter(first_click != 'NA')
+
+results %>% 
+    ggplot(aes(x = day, y = first_click, color = group)) +
+    #geom_line() +
+    geom_point() +
+    facet_grid(~ group) +
+    labs(title="", x="Dia",
+         y="Índice", color="Grupo") +
+    theme(plot.title = element_text(hjust = 0.5))
+
+results %>% 
+    ggplot(aes(x= group, 
+               y = first_click,
+               color= group)) +
+    geom_boxplot(varwidth=T) +
+    labs(title="",
+         x="Grupo", y="Índice") +
+    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+
+non_pared_bootstrap_func <- function(dado, indices){
+    d = dado %>% 
+      slice(indices) %>% 
+      group_by(group) %>% 
+      summarise(median_group = median(first_click)) %>% 
+      pull(median_group)
+    
+    return(d[1] - d[2])
+}
+
+bootstraps <- boot(data = results, 
+                   statistic = non_pared_bootstrap_func,
+                   R = 2000) # número de bootstraps
+
+glimpse(bootstraps$t)
+boot.ci(bootstraps, conf = 0.95, type = "basic")
+
+```
+
+
+```{r}
+all_sessions = buscas %>%
+    count(day, group)
+
+zero_results_sessions = buscas %>%
+    filter(results == 0) %>%
+    count(day, group) %>%
+    merge(all_sessions, by=c('day','group'))
+
+colnames(zero_results_sessions) = c("day", "group", "zero_results_sessions", "all_sessions")
+
+zero_results_sessions = zero_results_sessions %>%
+    mutate(zero_rate=zero_results_sessions/all_sessions)
+
+zero_results_sessions %>% 
+    ggplot(aes(x = day, y = zero_rate, color = group)) +
+    geom_line() +
+    geom_point() +
+    facet_grid(~ group) +
+    labs(title="Distribuição das proporções das buscas", x="Dia",
+         y="Proporção", color="Grupo") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+zero_results_sessions %>% 
+    ggplot(aes(x= group, 
+               y = zero_rate,
+               color= group)) +
+    geom_boxplot(varwidth=T) +
+    labs(title="Distribuição das proporções de buscas",
+         x="Grupo", y="Proporção") +
+    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+
+non_pared_bootstrap_func <- function(dado, indices){
+    d = dado %>% 
+      slice(indices) %>% 
+      group_by(group) %>% 
+      summarise(median_group = median(zero_rate)) %>% 
+      pull(median_group)
+    
+    return(d[1] - d[2])
+}
+
+bootstraps <- boot(data = zero_results_sessions, 
+                   statistic = non_pared_bootstrap_func,
+                   R = 2000) # número de bootstraps
+
+glimpse(bootstraps$t)
+boot.ci(bootstraps, conf = 0.95, type = "bca")
+```
+
+```{r}
+#QP4: O que acontece, para a QP1, se nós compararmos a metade das sessões do grupo A (escolhida aleatoriamente) com outra metade das sessões do grupo A?
+#total sessões do grupo A
+buscas %>%
+    filter(group == 'a') %>%
+    distinct(session_id, .keep_all=TRUE) %>%
+    nrow()
+#metade sessões do grupo A
+buscas %>%
+    filter(group == 'a') %>%
+    distinct(session_id, .keep_all=TRUE) %>%
+    nrow()/2
+
+first_sample = buscas %>%
+    filter(group == 'a') %>%
+    sample_n(buscas %>%
+                 filter(group == 'a') %>%
+                 distinct(session_id, .keep_all=TRUE) %>%
+                 nrow()/2)
+
+second_sample = buscas %>%
+    filter(group == 'a') %>%
+    sample_n(buscas %>%
+                 filter(group == 'a') %>%
+                 distinct(session_id, .keep_all=TRUE) %>%
+                 nrow()/2)
+
+second_sample$group = 'a2'
+final_sample = first_sample %>%
+    rbind(second_sample)
+
+all_sessions = final_sample %>%
+    distinct(session_id, .keep_all=TRUE) %>%
+    count(day, group) 
+
+clicked_sessions = final_sample %>%
+    filter(num_clicks >= 1) %>%
+    distinct(session_id, .keep_all=TRUE) %>%
+    count(day, group) %>%
+    merge(all_sessions, by=c('day','group'))
+
+colnames(clicked_sessions) = c("day", "group", "clicked_sessions", "all_sessions")
+
+clicked_sessions = clicked_sessions %>%
+    mutate(click_rate=clicked_sessions/all_sessions)
+
+clicked_sessions %>% 
+    ggplot(aes(x= group, 
+               y = click_rate,
+               color= group)) +
+    geom_boxplot(varwidth=T) +
+    labs(title="Distribuição das proporções de sessões",
+         x="Grupo", y="Proporção") +
+    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
+
+funcao_bootstrap <- function(dado, indices){
+    d = dado %>% 
+      slice(indices) %>% 
+      group_by(group) %>% 
+      summarise(median_click_rate = median(click_rate)) %>% 
+      pull(median_click_rate)
+    
+    return(d[1] - d[2])
+}
+
+bootstraps <- boot(data = clicked_sessions, 
+                   statistic = funcao_bootstrap, # <- referência para a função 
+                   R = 2000) # número de bootstraps
+
+boot.ci(bootstraps, conf = 0.95, type = "bca")
+
+```
+
+## Conclusão
+
+Este relatório tinha como objetivo identificar como são as buscas no Wikimedia. Nós pudemos investigar vários aspectos das buscas considerando duas categorias principais. Nós observamos que existe uma diferença entre os grupos A e B quanto à proporção de sessões de buscas diárias com clique. Além disso, essas taxas apresentam uma maior variação no grupo B. Mais importante, os resultados revelaram que os usuários tendem a experimentar primeiro os resultados mostrados no topo da lista de resultados. Considerando o pior caso, os usuários do grupo A tendem a experimentar os maiores índices retornados pela máquina de busca. No que toca aos resultados retornados, pudemos observar que existe uma diferença entre os grupos A e B quanto a proporção de buscas diárias com resultados iguais a zero. Além disso, essas taxas apresentam uma maior variação no grupo A. Finalmente, podemos concluir que, de fato, existe uma relação entre a duração da sessão de busca e a quantidade de cliques. Contudo, essa relação é inversa e relevantemente fraca. É importante destacar que os resultados levam em consideração valores pontuais obtidos pela análise descritiva e exploratória. Neste sentido, pode ser interessante comprovar nossos achados com base estatística.
