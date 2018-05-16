@@ -42,11 +42,11 @@ buscas = read_csv(here::here("data/search_data.csv")) %>%
 
 Este relatório tem como objetivo responder algumas outras questões importantes das buscas no Wikimedia. Diferentemente do relatório [anteiror](http://rpubs.com/marcosasn/385251), nós agora desejamos observar como se comportam algumas estimativas das buscas e as navegações de buscas considerando as duas categorias principais observadas. Essa análise vai permitir identificar diferenças significativas entre os dois grupos principais de sessões de usuários. Nosso relatório é animado pelas seguintes questões de pesquisa (QP):
 
-**QP1:** Existe diferença significativa da taxa de cliques geral diária entre os grupos A e B?
+**QP1:** Qual é a taxa de cliques geral diária? Como ela varia entre os grupos A e B? Existe diferença significativa da taxa de cliques geral diária entre os grupos A e B?
 
-**QP2:** Existe diferença significativa do índice dos resultados que os usuários tendem a tentar primeiro nos grupos A e B?
+**QP2:** Quais resultados os usuários tendem a tentar primeiro? Como isso muda no dia-a-dia? Existe diferença significativa do índice dos resultados que os usuários tendem a tentar primeiro nos grupos A e B?
 
-**QP3:** Existe diferença significativa da taxa de resultados iguais a zero entre os grupos A e B?
+**QP3:** Qual é a taxa de resultados zero geral diária? Como ela varia entre os grupos A e B? Existe diferença significativa da taxa de resultados iguais a zero entre os grupos A e B?
 
 **QP4:** O que acontece, para a **QP1**, se nós compararmos a metade das sessões do grupo A (escolhida aleatoriamente) com outra metade das sessões do grupo A?
 
@@ -95,6 +95,7 @@ bootstraps <- boot(data = clicked_sessions,
 
 glimpse(bootstraps$t)
 boot.ci(bootstraps, conf = 0.95, type = "bca")
+plot(bootstraps)
 ```
 
 ```{r}
@@ -196,41 +197,50 @@ boot.ci(bootstraps, conf = 0.95, type = "bca")
 #total sessões do grupo A
 buscas %>%
     filter(group == 'a') %>%
-    distinct(session_id, .keep_all=TRUE) %>%
+    #distinct(session_id, .keep_all=TRUE) %>%
     nrow()
-#metade sessões do grupo A
-buscas %>%
+
+sample_qtd = buscas %>%
     filter(group == 'a') %>%
-    distinct(session_id, .keep_all=TRUE) %>%
-    nrow()/2
+    #distinct(session_id, .keep_all=TRUE) %>%
+    nrow() * 2/3
 
 first_sample = buscas %>%
     filter(group == 'a') %>%
-    sample_n(buscas %>%
-                 filter(group == 'a') %>%
-                 distinct(session_id, .keep_all=TRUE) %>%
-                 nrow()/2)
+    sample_n(sample_qtd)
 
 second_sample = buscas %>%
     filter(group == 'a') %>%
-    sample_n(buscas %>%
-                 filter(group == 'a') %>%
-                 distinct(session_id, .keep_all=TRUE) %>%
-                 nrow()/2)
+    sample_n(sample_qtd)
 
 second_sample$group = 'a2'
 final_sample = first_sample %>%
     rbind(second_sample)
 
-all_sessions = final_sample %>%
-    distinct(session_id, .keep_all=TRUE) %>%
+all_sessions = buscas %>%
+#    distinct(session_id, .keep_all=TRUE) %>%
     count(day, group) 
 
 clicked_sessions = final_sample %>%
     filter(num_clicks >= 1) %>%
-    distinct(session_id, .keep_all=TRUE) %>%
+ #   distinct(session_id, .keep_all=TRUE) %>%
     count(day, group) %>%
     merge(all_sessions, by=c('day','group'))
+
+
+
+buscas %>% 
+  group_by(group, day) %>% 
+  summarise(ctr_day = sum(num_clicks > 0) / n()) %>% 
+  summarise(ctr = median(ctr_day))
+
+final_sample %>% 
+  group_by(group, day) %>% 
+  summarise(ctr_day = sum(num_clicks > 0) / n()) %>% 
+  summarise(ctr = median(ctr_day))
+
+
+
 
 colnames(clicked_sessions) = c("day", "group", "clicked_sessions", "all_sessions")
 
@@ -261,7 +271,6 @@ bootstraps <- boot(data = clicked_sessions,
                    R = 2000) # número de bootstraps
 
 boot.ci(bootstraps, conf = 0.95, type = "bca")
-
 ```
 
 ## Conclusão
