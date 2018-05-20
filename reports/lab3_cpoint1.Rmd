@@ -36,69 +36,61 @@ Nossa iniciativa de investigar como são as buscas no Wikimedia iniciou realizan
 #todas as buscas e navegações de busca
 buscas = read_csv(here::here("data/search_data.csv")) %>%
     mutate(day=round_date(session_start_date, unit = "day"))
+
+buscas = buscas %>%
+  filter((first_click <= results) | (is.na(first_click) & num_clicks == 0))
 ```
 
 ## Contexto da pesquisa e questões de pesquisa
 
-Este relatório tem como objetivo responder algumas outras questões importantes das buscas no Wikimedia. Diferentemente do relatório [anteiror](http://rpubs.com/marcosasn/385251), nós agora desejamos observar como se comportam algumas estimativas das buscas e as navegações de buscas considerando as duas categorias principais observadas. Essa análise vai permitir identificar diferenças significativas entre os dois grupos principais de sessões de usuários. Nosso relatório é animado pelas seguintes questões de pesquisa (QP):
-
-**QP1:** Qual é a taxa de cliques geral diária? Como ela varia entre os grupos A e B? Existe diferença significativa da taxa de cliques geral diária entre os grupos A e B?
-
-**QP2:** Quais resultados os usuários tendem a tentar primeiro? Como isso muda no dia-a-dia? Existe diferença significativa do índice dos resultados que os usuários tendem a tentar primeiro nos grupos A e B?
-
-**QP3:** Qual é a taxa de resultados zero geral diária? Como ela varia entre os grupos A e B? Existe diferença significativa da taxa de resultados iguais a zero entre os grupos A e B?
-
-**QP4:** O que acontece, para a **QP1**, se nós compararmos a metade das sessões do grupo A (escolhida aleatoriamente) com outra metade das sessões do grupo A?
+Este relatório tem como objetivo responder algumas outras questões importantes das buscas no Wikimedia. Diferentemente do relatório [anteiror](http://rpubs.com/marcosasn/385251), nós agora desejamos observar como se comportam algumas estimativas das buscas e as navegações de buscas considerando as duas categorias principais observadas. Essa análise vai permitir identificar diferenças significativas entre os dois grupos principais de sessões de usuários.
 
 ## Resultados e discussão
 
+**QP1:** Qual é a taxa de cliques geral diária? Como ela varia entre os grupos A e B? Existe diferença significativa da taxa de cliques geral diária entre os grupos A e B?
+
+Com o objetivo de responder **QP1**, nós observamos como é a taxa de cliques geral diária entre os grupos. Nós observamos em um relatório anterior que essas taxas são ligeiramente diferentes. Isso fica evidente se observarmos o gráfico abaixo. Neste gráfico, é possível observar que as taxas do grupo A foram superiores, todos os dias de observação, em relação às taxas do grupo B. Com o objetivo de verificar a existência de uma diferença significativa entre essas taxas, nós calculamos o intervalo de confiança para a diferença das taxas medianas de cliques geral diária.
+
 ```{r}
-all_sessions = buscas %>%
-    distinct(session_id, .keep_all=TRUE) %>%
-    count(day, group) 
-
-clicked_sessions = buscas %>%
-    filter(num_clicks >= 1) %>%
-    distinct(session_id, .keep_all=TRUE) %>%
-    count(day, group) %>%
-    merge(all_sessions, by=c('day','group'))
-
-colnames(clicked_sessions) = c("day", "group", "clicked_sessions", "all_sessions")
-
-clicked_sessions = clicked_sessions %>%
-    mutate(click_rate=clicked_sessions/all_sessions)
+buscas %>% 
+  group_by(day, group) %>% 
+  summarise(ctr_day = sum(num_clicks > 0) / n()) %>%
+    ggplot(aes(x=day, 
+               y=ctr_day,
+               color=group)) +
+    geom_point() +
+    geom_line()
 ```
-
+A distribuição amostral, estimada via bootstrap da diferença das taxas medianas, abaixo corrobora com nossas conclusões anteriores. Como é possível ver abaixo, a distribuição da diferença inclui apenas números positivos maiores que zero. Isso significa que, assim como na nossa amostra, existe uma diferença significativa das taxas medianas entre os grupos também na população de onde os nossos dados foram originados.
 ```{r}
-clicked_sessions %>% 
-    ggplot(aes(x= group, 
-               y = click_rate,
-               color= group)) +
-    geom_boxplot(varwidth=T) +
-    labs(title="Distribuição das proporções de sessões",
-         x="Grupo", y="Proporção") +
-    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
-
 bootstrap_func <- function(dado, indices){
     d = dado %>% 
       slice(indices) %>% 
-      group_by(group) %>% 
-      summarise(median_group = median(click_rate)) %>% 
-      pull(median_group)
+      group_by(day, group) %>% 
+      summarise(median_ctr = median(sum(num_clicks > 0) / n())) %>% 
+      pull(median_ctr)
     
     return(d[1] - d[2])
 }
 
-bootstraps <- boot(data = clicked_sessions, 
+bootstraps <- boot(data = buscas, 
                    statistic = bootstrap_func,
                    R = 2000) # número de bootstraps
 
-glimpse(bootstraps$t)
-boot.ci(bootstraps, conf = 0.95, type = "bca")
-plot(bootstraps)
+tibble(estatistica = as.double(bootstraps$t)) %>% 
+    ggplot(aes(x = estatistica)) + 
+    geom_histogram(binwidth = .0001, fill = "white", color = "darkred")
+```
+Observando o intervalo de confiança abaixo, podemos concluir com 95% de confiança, que existe uma diferença significativa entre as taxas medianas de cliques geral diária entre os grupos A e B na população de todas as buscas realizadas no Wikimedia. Além disso, podemos ainda concluir que, a mediana das taxas de cliques geral diária do grupo A é maior que a mediana das taxas de cliques geral diária do grupo B. Com relação à extensão ou relevância dessa diferença, podemos afirmar que ela não aparenta ser grande (~0.0347).
+```{r}
+boot.ci(bootstraps, conf = 0.95, type = "basic")
 ```
 
+**QP2:** Quais resultados os usuários tendem a tentar primeiro? Como isso muda no dia-a-dia? Existe diferença significativa do índice dos resultados que os usuários tendem a tentar primeiro nos grupos A e B?
+Which results do people tend to try first? How does it change day-to-day?
+
 ```{r}
+#QP2
 results = buscas %>%
     filter(first_click != 'NA')
 
@@ -139,72 +131,60 @@ boot.ci(bootstraps, conf = 0.95, type = "basic")
 
 ```
 
+**QP3:** Qual é a taxa de resultados zero geral diária? Como ela varia entre os grupos A e B? Existe diferença significativa da taxa de resultados iguais a zero entre os grupos A e B?
 
+Com o objetivo de responder **QP3**, nós observamos como é a taxa de resultados zero geral diária entre os grupos. Nós observamos em um relatório anterior que essas taxas são ligeiramente diferentes se comparamos os grupos A e B. Isso fica evidente se observarmos o gráfico abaixo. Neste gráfico, é possível observar que as taxas de ambos os grupos se sobrepõem em vários dias de observação. Com o objetivo de verificar a existência de uma diferença significativa entre essas taxas, nós calculamos o intervalo de confiança para a diferença das taxas medianas de resultados zero geral diária das buscas nos dois grupos.
 ```{r}
-all_sessions = buscas %>%
-    count(day, group)
-
-zero_results_sessions = buscas %>%
+buscas %>%
+    group_by(day, group, results) %>%
+    summarise(n = n()) %>%
+    mutate(zero_ratio = n/sum(n)) %>%
     filter(results == 0) %>%
-    count(day, group) %>%
-    merge(all_sessions, by=c('day','group'))
-
-colnames(zero_results_sessions) = c("day", "group", "zero_results_sessions", "all_sessions")
-
-zero_results_sessions = zero_results_sessions %>%
-    mutate(zero_rate=zero_results_sessions/all_sessions)
-
-zero_results_sessions %>% 
-    ggplot(aes(x = day, y = zero_rate, color = group)) +
-    geom_line() +
+    ggplot(aes(x=day, 
+               y=zero_ratio,
+               color=group)) +
     geom_point() +
-    facet_grid(~ group) +
-    labs(title="Distribuição das proporções das buscas", x="Dia",
-         y="Proporção", color="Grupo") +
-    theme(plot.title = element_text(hjust = 0.5))
+    geom_line()
 ```
-
+A distribuição amostral, estimada via bootstrap da diferença das taxas medianas, abaixo não fornece evidencias que corroboram com nossas conclusões anteriores. Como é possível ver abaixo, a distribuição da diferença inclui o valor zero. Isso significa que, diferentemente do que observamos na nossa amostra, não podemos concluir que existe uma diferença significativa na popupalação de todas as buscas realizadas no Wikimedia. 
 ```{r}
-zero_results_sessions %>% 
-    ggplot(aes(x= group, 
-               y = zero_rate,
-               color= group)) +
-    geom_boxplot(varwidth=T) +
-    labs(title="Distribuição das proporções de buscas",
-         x="Grupo", y="Proporção") +
-    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
-
-non_pared_bootstrap_func <- function(dado, indices){
+bootstrap_func <- function(dado, indices){
     d = dado %>% 
       slice(indices) %>% 
-      group_by(group) %>% 
-      summarise(median_group = median(zero_rate)) %>% 
+      group_by(day, group, results) %>%
+    summarise(n = n()) %>%
+    mutate(zero_ratio = n/sum(n)) %>%
+    filter(results == 0) %>%
+        group_by(group) %>% 
+      summarise(median_group = median(zero_ratio)) %>% 
       pull(median_group)
     
     return(d[1] - d[2])
 }
 
-bootstraps <- boot(data = zero_results_sessions, 
-                   statistic = non_pared_bootstrap_func,
-                   R = 2000) # número de bootstraps
+res.boot <- boot(data = buscas, 
+                 statistic = bootstrap_func, 
+                 R = 2000)
 
-glimpse(bootstraps$t)
-boot.ci(bootstraps, conf = 0.95, type = "bca")
+tibble(estatistica = as.double(res.boot$t)) %>% 
+    ggplot(aes(x = estatistica)) + 
+    geom_histogram(binwidth = .0001, fill = "white", color = "darkred")
+```
+Observando o intervalo de confiança abaixo, não podemos concluir com 95% de confiança, que existe uma diferença significativa entre as taxas medianas de resultados zero geral diária entre os grupos de buscas A e B.
+```{r}
+boot.ci(boot.out = res.boot, conf = 0.95, type = "basic")
 ```
 
-```{r}
-#QP4: O que acontece, para a QP1, se nós compararmos a metade das sessões do grupo A (escolhida aleatoriamente) com outra metade das sessões do grupo A?
-#total sessões do grupo A
-buscas %>%
-    filter(group == 'a') %>%
-    #distinct(session_id, .keep_all=TRUE) %>%
-    nrow()
+**QP4:** O que acontece, para a **QP1**, se nós compararmos a metade das sessões do grupo A (escolhida aleatoriamente) com outra metade das sessões do grupo A?
+ testa o que acontece se para a pergunta 1, em vez de comparar o grupo A com o grupo B (um teste A/B), você compara metade das sessões do grupo A (escolhida aleatoriamente) com outra metade das sessões do mesmo grupo (um teste A/A).
 
+Com o objetivo de responder **QP4**, nós observamos como é a taxa de cliques geral diária considerando unicamente o grupo A. Idealmente, se compararmos qualquer estimativa de um grupo, com uma outra estimativa de um mesmo grupo, deveriamos não obter diferença significativa. Nós observamos em **QP1** que existe uma diferença significativa entre A e B. Em **QP4**, por outro lado, desejamos investigar se existe uma diferença significativa entre as buscas de A e A. Com o objetivo de investigar isso, nós calculamos o intervalo de confiança para a diferença das taxas medianas de cliques geral diária. Partindo da análise amostral, nós observamos que, existe diferença se comparamos a taxa mediana de cliques geral diária do grupo A com ele mesmo. Contudo, essa diferença não aparenta ser significativa. Isso fica claramente evidente no gráfico abaixo. Note que, a mediana de taxa de cliques geral diária do grupo A não é exatamente similar a taxa dele mesmo.
+```{r}
 sample_qtd = buscas %>%
     filter(group == 'a') %>%
-    #distinct(session_id, .keep_all=TRUE) %>%
-    nrow() * 2/3
-
+    distinct(session_id) %>%
+    nrow()/2
+    
 first_sample = buscas %>%
     filter(group == 'a') %>%
     sample_n(sample_qtd)
@@ -212,65 +192,44 @@ first_sample = buscas %>%
 second_sample = buscas %>%
     filter(group == 'a') %>%
     sample_n(sample_qtd)
-
+    
 second_sample$group = 'a2'
+
 final_sample = first_sample %>%
     rbind(second_sample)
 
-all_sessions = buscas %>%
-#    distinct(session_id, .keep_all=TRUE) %>%
-    count(day, group) 
-
-clicked_sessions = final_sample %>%
-    filter(num_clicks >= 1) %>%
- #   distinct(session_id, .keep_all=TRUE) %>%
-    count(day, group) %>%
-    merge(all_sessions, by=c('day','group'))
-
-
-
-buscas %>% 
-  group_by(group, day) %>% 
-  summarise(ctr_day = sum(num_clicks > 0) / n()) %>% 
-  summarise(ctr = median(ctr_day))
-
+#Não há diferença entre ctrl de A e A
 final_sample %>% 
   group_by(group, day) %>% 
   summarise(ctr_day = sum(num_clicks > 0) / n()) %>% 
-  summarise(ctr = median(ctr_day))
-
-
-
-
-colnames(clicked_sessions) = c("day", "group", "clicked_sessions", "all_sessions")
-
-clicked_sessions = clicked_sessions %>%
-    mutate(click_rate=clicked_sessions/all_sessions)
-
-clicked_sessions %>% 
     ggplot(aes(x= group, 
-               y = click_rate,
+               y = ctr_day,
                color= group)) +
-    geom_boxplot(varwidth=T) +
-    labs(title="Distribuição das proporções de sessões",
-         x="Grupo", y="Proporção") +
-    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
-
+    geom_boxplot(varwidth=T)
+```
+A distribuição amostral, estimada via bootstrap da diferença das taxas medianas de cliques geral diária, abaixo não fornece evidências que corroboram com nossas conclusões amostrais. Como é possível ver abaixo, a distribuição da diferença inclui o valor zero. Isso significa que, diferentemente do que observamos na nossa amostra, não podemos concluir que existe uma diferença significativa na população de todas as buscas do grupo A.
+```{r}
 funcao_bootstrap <- function(dado, indices){
     d = dado %>% 
       slice(indices) %>% 
-      group_by(group) %>% 
-      summarise(median_click_rate = median(click_rate)) %>% 
-      pull(median_click_rate)
+      group_by(day, group) %>% 
+      summarise(median_ctr = median(sum(num_clicks > 0) / n())) %>% 
+      pull(median_ctr)
     
     return(d[1] - d[2])
 }
 
-bootstraps <- boot(data = clicked_sessions, 
+bootstraps <- boot(data = final_sample, 
                    statistic = funcao_bootstrap, # <- referência para a função 
                    R = 2000) # número de bootstraps
 
-boot.ci(bootstraps, conf = 0.95, type = "bca")
+tibble(estatistica = as.double(bootstraps$t)) %>% 
+    ggplot(aes(x = estatistica)) + 
+    geom_histogram(binwidth = .0001, fill = "white", color = "darkred")
+```
+Observando o intervalo de confiança abaixo, não podemos concluir com 95% de confiança, que existe uma diferença significativa entre as taxas medianas de cliques geral diária entre o grupo de buscas A e ele mesmo.
+```{r}
+boot.ci(bootstraps, conf = 0.95, type = "basic")
 ```
 
 ## Conclusão
