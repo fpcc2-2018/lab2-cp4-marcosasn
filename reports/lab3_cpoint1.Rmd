@@ -159,7 +159,7 @@ buscas %>%
          y="Taxa", color="Grupo") +
     theme(plot.title = element_text(hjust = 0.5))
 ```
-A distribuição amostral, estimada via bootstrap da diferença das taxas medianas, abaixo não fornece evidencias que corroboram com nossas conclusões anteriores. Como é possível ver abaixo, a distribuição da diferença inclui o valor zero. Isso significa que, diferentemente do que observamos na nossa amostra, não podemos concluir que existe uma diferença significativa na popupalação de todas as buscas realizadas no Wikimedia. 
+A distribuição amostral, estimada via bootstrap da diferença das taxas medianas, abaixo não fornece evidências que corroboram com nossas conclusões anteriores. Como é possível ver abaixo, a distribuição da diferença inclui o valor zero. Isso significa que, diferentemente do que observamos na nossa amostra, não podemos concluir que existe uma diferença significativa na popupalação de todas as buscas realizadas no Wikimedia. 
 ```{r}
 bootstrap_func <- function(dado, indices){
     d = dado %>% 
