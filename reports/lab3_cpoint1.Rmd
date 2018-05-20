@@ -59,7 +59,10 @@ buscas %>%
                y=ctr_day,
                color=group)) +
     geom_point() +
-    geom_line()
+    geom_line() +
+    labs(title="Distribuição das taxas de cliques geral", x="Dia",
+         y="Taxa", color="Grupo") +
+    theme(plot.title = element_text(hjust = 0.5))
 ```
 A distribuição amostral, estimada via bootstrap da diferença das taxas medianas, abaixo corrobora com nossas conclusões anteriores. Como é possível ver abaixo, a distribuição da diferença inclui apenas números positivos maiores que zero. Isso significa que, assim como na nossa amostra, existe uma diferença significativa das taxas medianas entre os grupos também na população de onde os nossos dados foram originados.
 ```{r}
@@ -79,56 +82,63 @@ bootstraps <- boot(data = buscas,
 
 tibble(estatistica = as.double(bootstraps$t)) %>% 
     ggplot(aes(x = estatistica)) + 
-    geom_histogram(binwidth = .0001, fill = "white", color = "darkred")
+    geom_histogram(binwidth = .0001, fill = "white", color = "darkred") +
+    labs(title="Distribuição da diferença das taxas medianas de cliques geral diária",
+         x="Diferença",
+         y="Frequência") +
+    theme(plot.title = element_text(hjust = 0.5))
 ```
 Observando o intervalo de confiança abaixo, podemos concluir com 95% de confiança, que existe uma diferença significativa entre as taxas medianas de cliques geral diária entre os grupos A e B na população de todas as buscas realizadas no Wikimedia. Além disso, podemos ainda concluir que, a mediana das taxas de cliques geral diária do grupo A é maior que a mediana das taxas de cliques geral diária do grupo B. Com relação à extensão ou relevância dessa diferença, podemos afirmar que ela não aparenta ser grande (~0.0347).
 ```{r}
 boot.ci(bootstraps, conf = 0.95, type = "basic")
 ```
 
-**QP2:** Quais resultados os usuários tendem a tentar primeiro? Como isso muda no dia-a-dia? Existe diferença significativa do índice dos resultados que os usuários tendem a tentar primeiro nos grupos A e B?
-Which results do people tend to try first? How does it change day-to-day?
+**QP2:** Quais resultados os usuários tendem a tentar primeiro? Como isso muda no dia-a-dia? 
 
+Com o objetivo de responder **QP2**, nós observamos quais os resultados que os usuários tendem a tentar primeiro. Nós observamos em um relatório anterior dois casos: (i) os resultados que os usuários tendem a experimentar primeiro são aqueles mostrados no topo da lista de resultados e (ii) uma investigação com base nos valores máximos, revelou que, alguns usuários tendem a experimentar os maiores índices retornados pela máquina de busca. Nesta análise, ainda buscando entender melhor quais os resultados acessados pelos usuários no primeiro clique, nós consideramos os valores presentes na nonagésima quinta posição (95th percentile). No gráfico abaixo, é possível observar as conclusões da análise considerando apenas os dados da amostra. Note que, apesar da maioria dos usuários tentarem os primeiros documentos, alguns usuários acessam documentos bottom (documentos com índices elevados). Com o objetivo de estimar a mediana da nonagésima quinta posição do índice do primeiro clique diário, nós calculamos o intervalo de confiança.
 ```{r}
-#QP2
-results = buscas %>%
-    filter(first_click != 'NA')
-
-results %>% 
-    ggplot(aes(x = day, y = first_click, color = group)) +
-    #geom_line() +
+buscas %>%
+    filter(first_click != 'NA') %>%
+    group_by(day) %>% 
+  summarise(first_click = quantile(first_click, c(.95))) %>%
+    ggplot(aes(x=day, 
+               y=first_click,
+               color="darkorange")) +
     geom_point() +
-    facet_grid(~ group) +
-    labs(title="", x="Dia",
-         y="Índice", color="Grupo") +
-    theme(plot.title = element_text(hjust = 0.5))
-
-results %>% 
-    ggplot(aes(x= group, 
-               y = first_click,
-               color= group)) +
-    geom_boxplot(varwidth=T) +
-    labs(title="",
-         x="Grupo", y="Índice") +
-    theme(plot.title = element_text(hjust = 0.5), legend.position="none")
-
-non_pared_bootstrap_func <- function(dado, indices){
+    geom_line() +
+    labs(title="Distribuição do 95th percentil do índice do primeiro clique",
+         x="Dia",
+         y="95th percentil") +
+    theme(plot.title = element_text(hjust = 0.5),
+          legend.position = 'none')
+```
+A distribuição amostral, estimada via bootstrap da mediana da nonagésima quinta posição do índice do primeiro clique diário, abaixo corrobora com nossas conclusões anteriores. Como é possível ver abaixo, a distribuição da mediana da nonagésima quinta posição do índice do primeiro clique diário varia entre 7 e 8.5. Isso significa que, espera-se que a mediana da nonagésima quinta posição do índice do primeiro clique diário esteja entre 7.5 e 8.5.
+```{r}
+bootstrap_func <- function(dado, indices){
     d = dado %>% 
-      slice(indices) %>% 
-      group_by(group) %>% 
-      summarise(median_group = median(first_click)) %>% 
-      pull(median_group)
+      slice(indices) %>%
+        group_by(day) %>%
+        summarise(first_click = quantile(first_click, c(.95))) %>%
+      pull(first_click)
     
-    return(d[1] - d[2])
+    return(median(d))
 }
 
-bootstraps <- boot(data = results, 
-                   statistic = non_pared_bootstrap_func,
+bootstraps <- boot(data = buscas %>% filter(first_click != 'NA'), 
+                   statistic = bootstrap_func,
                    R = 2000) # número de bootstraps
 
-glimpse(bootstraps$t)
+tibble(estatistica = as.double(bootstraps$t)) %>% 
+    ggplot(aes(x = estatistica)) + 
+    geom_histogram(binwidth = .1, fill = "white", color = "darkred") +
+    labs(title="Distribuição da mediana do 95th percentil do índice do primeiro clique diário",
+         x="95th percentil",
+         y="Frequência") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+Observando o intervalo de confiança abaixo, podemos concluir com 95% de confiança, que a mediana da nonagésima quinta posição do índice do primeiro clique diário esteja entre 7.5 e 8.5 na população de todas as buscas realizadas no Wikimedia.
+```{r}
 boot.ci(bootstraps, conf = 0.95, type = "basic")
-
 ```
 
 **QP3:** Qual é a taxa de resultados zero geral diária? Como ela varia entre os grupos A e B? Existe diferença significativa da taxa de resultados iguais a zero entre os grupos A e B?
@@ -144,7 +154,10 @@ buscas %>%
                y=zero_ratio,
                color=group)) +
     geom_point() +
-    geom_line()
+    geom_line() +
+    labs(title="Distribuição das taxas de resultados zero geral", x="Dia",
+         y="Taxa", color="Grupo") +
+    theme(plot.title = element_text(hjust = 0.5))
 ```
 A distribuição amostral, estimada via bootstrap da diferença das taxas medianas, abaixo não fornece evidencias que corroboram com nossas conclusões anteriores. Como é possível ver abaixo, a distribuição da diferença inclui o valor zero. Isso significa que, diferentemente do que observamos na nossa amostra, não podemos concluir que existe uma diferença significativa na popupalação de todas as buscas realizadas no Wikimedia. 
 ```{r}
@@ -168,7 +181,11 @@ res.boot <- boot(data = buscas,
 
 tibble(estatistica = as.double(res.boot$t)) %>% 
     ggplot(aes(x = estatistica)) + 
-    geom_histogram(binwidth = .0001, fill = "white", color = "darkred")
+    geom_histogram(binwidth = .0001, fill = "white", color = "darkred") +
+    labs(title="Distribuição da diferença das taxas medianas de resultados zero geral diária",
+         x="Diferença",
+         y="Frequência") +
+    theme(plot.title = element_text(hjust = 0.5))
 ```
 Observando o intervalo de confiança abaixo, não podemos concluir com 95% de confiança, que existe uma diferença significativa entre as taxas medianas de resultados zero geral diária entre os grupos de buscas A e B.
 ```{r}
@@ -202,10 +219,14 @@ final_sample = first_sample %>%
 final_sample %>% 
   group_by(group, day) %>% 
   summarise(ctr_day = sum(num_clicks > 0) / n()) %>% 
-    ggplot(aes(x= group, 
-               y = ctr_day,
-               color= group)) +
-    geom_boxplot(varwidth=T)
+    ggplot(aes(x=day, 
+               y=ctr_day,
+               color=group)) +
+    geom_point() +
+    geom_line() +
+    labs(title="Distribuição das taxas de cliques geral", x="Dia",
+         y="Taxa", color="Grupo") +
+    theme(plot.title = element_text(hjust = 0.5))
 ```
 A distribuição amostral, estimada via bootstrap da diferença das taxas medianas de cliques geral diária, abaixo não fornece evidências que corroboram com nossas conclusões amostrais. Como é possível ver abaixo, a distribuição da diferença inclui o valor zero. Isso significa que, diferentemente do que observamos na nossa amostra, não podemos concluir que existe uma diferença significativa na população de todas as buscas do grupo A.
 ```{r}
@@ -225,7 +246,11 @@ bootstraps <- boot(data = final_sample,
 
 tibble(estatistica = as.double(bootstraps$t)) %>% 
     ggplot(aes(x = estatistica)) + 
-    geom_histogram(binwidth = .0001, fill = "white", color = "darkred")
+    geom_histogram(binwidth = .0001, fill = "white", color = "darkred") +
+    labs(title="Distribuição da diferença das taxas medianas de cliques geral diária",
+         x="Diferença",
+         y="Frequência") +
+    theme(plot.title = element_text(hjust = 0.5))
 ```
 Observando o intervalo de confiança abaixo, não podemos concluir com 95% de confiança, que existe uma diferença significativa entre as taxas medianas de cliques geral diária entre o grupo de buscas A e ele mesmo.
 ```{r}
@@ -234,4 +259,6 @@ boot.ci(bootstraps, conf = 0.95, type = "basic")
 
 ## Conclusão
 
-Este relatório tinha como objetivo identificar como são as buscas no Wikimedia. Nós pudemos investigar vários aspectos das buscas considerando duas categorias principais. Nós observamos que existe uma diferença entre os grupos A e B quanto à proporção de sessões de buscas diárias com clique. Além disso, essas taxas apresentam uma maior variação no grupo B. Mais importante, os resultados revelaram que os usuários tendem a experimentar primeiro os resultados mostrados no topo da lista de resultados. Considerando o pior caso, os usuários do grupo A tendem a experimentar os maiores índices retornados pela máquina de busca. No que toca aos resultados retornados, pudemos observar que existe uma diferença entre os grupos A e B quanto a proporção de buscas diárias com resultados iguais a zero. Além disso, essas taxas apresentam uma maior variação no grupo A. Finalmente, podemos concluir que, de fato, existe uma relação entre a duração da sessão de busca e a quantidade de cliques. Contudo, essa relação é inversa e relevantemente fraca. É importante destacar que os resultados levam em consideração valores pontuais obtidos pela análise descritiva e exploratória. Neste sentido, pode ser interessante comprovar nossos achados com base estatística.
+Este relatório tinha como objetivo identificar como são as buscas no Wikimedia. Nós pudemos investigar vários aspectos das buscas considerando duas categorias principais. Nós observamos que existe uma diferença significativa entre as taxas de cliques geral diária entre os grupos A e B. Nós acreditamos que, os usuários do grupo A estejam usurfruindo melhor dos resultados retornados pela máquina de busca. Nós também observamos que, os resultados que os usuários tendem à experimentar primeiro são aqueles mostrados no topo da lista de resultados. Contudo, considerando a análise dos valores presentes na nonagésima quinta posição, alguns dos usuários tendem à experimentar não unicamente os primeiros índices retornados pela máquina de busca. 
+
+Quanto à proporção de buscas diárias com resultados iguais à zero, nós pudemos observar que não há evidências que apontem a existência de uma diferença significativa entre os grupos A e B. Isso indica que, é coerente dizer que, estes grupos apresentam buscas que retornam zero resultados de forma similiar. Finalmente, podemos concluir que de fato, não existe diferença significativa da taxa de cliques geral diária entre o grupo A e ele mesmo.
