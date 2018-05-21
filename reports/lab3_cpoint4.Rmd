@@ -1,0 +1,113 @@
+---
+title: "Lab 3 - Checkpoint 4"
+author: "Marcos Nascimento (marcosantonio@copin.ufcg.edu.br)"
+date: "Maio 13, 2018"
+output:
+  html_document:
+    df_print: paged
+---
+
+<style>
+    body {text-align: justify;
+    font-family: "Times New Roman";
+    -webkit-column-count:2;}
+</style>
+
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(fig.align="center", fig.width=7, fig.height=4)
+knitr::opts_chunk$set(warning = FALSE)
+
+library(tidyverse)
+library(here)
+library(lubridate)
+library(shiny)
+library(plotly)
+library(boot)
+theme_set(theme_bw())
+```
+
+# Como são as buscas no Wikimedia?
+
+## Coleção de dados
+
+Nossa iniciativa de investigar como são as buscas no Wikimedia iniciou realizando a coleta dos dados. Os dados foram coletados por meio do registro de logs de eventos disponibilizados pela própria Wikimedia na [internet](https://github.com/wikimedia-research/Discovery-Hiring-Analyst-2016). Primeiramente, um refinamento dos dados foi realizado com o objetivo de gerar novas variáveis que pudessem extrair algumas informações valiosas. Tais variáveis, foram utilizadas como fonte de informação para investigar as questões de pesquisa deste relatório. 
+
+```{r ETL}
+#todas as buscas e navegações de busca
+buscas = read_csv(here::here("data/search_data.csv")) %>%
+    mutate(day=round_date(session_start_date, unit = "day"))
+
+buscas = buscas %>%
+  filter((first_click <= results) | (is.na(first_click) & num_clicks == 0))
+```
+
+## Contexto da pesquisa e questões de pesquisa
+
+Este relatório tem como objetivo responder algumas outras questões importantes das buscas no Wikimedia. Diferentemente do relatório [anteiror](http://rpubs.com/marcosasn/385251), nós agora desejamos observar como se comportam algumas estimativas das buscas e as navegações de buscas considerando as duas categorias principais observadas. Essa análise vai permitir identificar diferenças significativas entre os dois grupos principais de sessões de usuários.
+
+## Resultados e discussão
+
+**QP1:** Qual é a taxa de cliques geral diária? Como ela varia entre os grupos A e B? Existe diferença significativa da taxa de cliques geral diária entre os grupos A e B?
+
+Com o objetivo de responder **QP1**, nós observamos como é a taxa de cliques geral diária entre os grupos. Nós observamos em um relatório anterior que essas taxas são ligeiramente diferentes. Isso fica evidente se observarmos o gráfico abaixo. Neste gráfico, é possível observar que as taxas do grupo A foram superiores, todos os dias de observação, em relação às taxas do grupo B. Com o objetivo de verificar a existência de uma diferença significativa entre essas taxas, nós calculamos o intervalo de confiança para a diferença das taxas medianas de cliques geral diária.
+
+```{r}
+buscas %>% 
+  group_by(day, group) %>% 
+  summarise(ctr_day = sum(num_clicks > 0) / n()) %>%
+    ggplot(aes(x=day, 
+               y=ctr_day,
+               color=group)) +
+    geom_point() +
+    geom_line() +
+    labs(title="Distribuição das taxas de cliques geral", x="Dia",
+         y="Taxa", color="Grupo") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+A distribuição amostral, estimada via bootstrap da diferença das taxas medianas, abaixo corrobora com nossas conclusões anteriores. Como é possível ver abaixo, a distribuição da diferença inclui apenas números positivos maiores que zero. Isso significa que, assim como na nossa amostra, existe uma diferença significativa das taxas medianas entre os grupos também na população de onde os nossos dados foram originados.
+```{r}
+library(resample)
+#There is difference between the a diary median ctr and b (p-value=8E-04)
+buscas %>% 
+    group_by(day, group) %>% 
+    summarise(ctr = sum(num_clicks > 0) / n()) %>%
+    permutationTest2(median(ctr), treatment = group)
+
+```
+Observando o intervalo de confiança abaixo, podemos concluir com 95% de confiança, que existe uma diferença significativa entre as taxas medianas de cliques geral diária entre os grupos A e B na população de todas as buscas realizadas no Wikimedia. Além disso, podemos ainda concluir que, a mediana das taxas de cliques geral diária do grupo A é maior que a mediana das taxas de cliques geral diária do grupo B. Com relação à extensão ou relevância dessa diferença, podemos afirmar que ela não aparenta ser grande (~0.0347).
+
+**QP3:** Qual é a taxa de resultados zero geral diária? Como ela varia entre os grupos A e B? Existe diferença significativa da taxa de resultados iguais a zero entre os grupos A e B?
+
+Com o objetivo de responder **QP3**, nós observamos como é a taxa de resultados zero geral diária entre os grupos. Nós observamos em um relatório anterior que essas taxas são ligeiramente diferentes se comparamos os grupos A e B. Isso fica evidente se observarmos o gráfico abaixo. Neste gráfico, é possível observar que as taxas de ambos os grupos se sobrepõem em vários dias de observação. Com o objetivo de verificar a existência de uma diferença significativa entre essas taxas, nós calculamos o intervalo de confiança para a diferença das taxas medianas de resultados zero geral diária das buscas nos dois grupos.
+```{r}
+buscas %>%
+    group_by(day, group, results) %>%
+    summarise(n = n()) %>%
+    mutate(zero_ratio = n/sum(n)) %>%
+    filter(results == 0) %>%
+    ggplot(aes(x=day, 
+               y=zero_ratio,
+               color=group)) +
+    geom_point() +
+    geom_line() +
+    labs(title="Distribuição das taxas de resultados zero geral", x="Dia",
+         y="Taxa", color="Grupo") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+A distribuição amostral, estimada via bootstrap da diferença das taxas medianas, abaixo não fornece evidências que corroboram com nossas conclusões anteriores. Como é possível ver abaixo, a distribuição da diferença inclui o valor zero. Isso significa que, diferentemente do que observamos na nossa amostra, não podemos concluir que existe uma diferença significativa na população de todas as buscas realizadas no Wikimedia. 
+```{r}
+#There is no difference between a and b (p-value=0.2992)
+buscas %>% 
+    group_by(day, group, results) %>%
+    summarise(n = n()) %>%
+    mutate(zero_ratio = n/sum(n)) %>%
+    filter(results == 0) %>%
+    permutationTest2(median(zero_ratio), treatment = group)
+```
+Observando o intervalo de confiança abaixo, não podemos concluir com 95% de confiança, que existe uma diferença significativa entre as taxas medianas de resultados zero geral diária entre os grupos de buscas A e B.
+
+## Conclusão
+
+Este relatório tinha como objetivo identificar como são as buscas no Wikimedia. Nós pudemos investigar vários aspectos das buscas considerando duas categorias principais. Nós observamos que existe uma diferença significativa entre as taxas de cliques geral diária entre os grupos A e B. Nós acreditamos que, os usuários do grupo A estejam usurfruindo melhor dos resultados retornados pela máquina de busca. Nós também observamos que, os resultados que os usuários tendem à experimentar primeiro são aqueles mostrados no topo da lista de resultados. Contudo, considerando a análise dos valores presentes na nonagésima quinta posição, alguns dos usuários tendem à experimentar não unicamente os primeiros índices retornados pela máquina de busca. 
+
+Quanto à proporção de buscas diárias com resultados iguais à zero, nós pudemos observar que não há evidências que apontem a existência de uma diferença significativa entre os grupos A e B. Isso indica que, é coerente dizer que, estes grupos apresentam buscas que retornam zero resultados de forma similiar. Finalmente, podemos concluir que de fato, não existe diferença significativa da taxa de cliques geral diária entre o grupo A e ele mesmo.
