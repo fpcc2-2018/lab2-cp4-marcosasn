@@ -21,10 +21,9 @@ library(tidyverse)
 library(here)
 library(lubridate)
 library(shiny)
-library(plotly)
 library(boot)
 library(resample)
-theme_set(theme_bw())
+#theme_set(theme_bw())
 ```
 
 # Como são as buscas no Wikimedia?
@@ -44,13 +43,13 @@ buscas = buscas %>%
 
 ## Contexto da pesquisa e questões de pesquisa
 
-Este relatório tem como objetivo responder algumas outras questões importantes das buscas no Wikimedia. Diferentemente do relatório [anteiror](http://rpubs.com/marcosasn/385251), nós agora desejamos observar como se comportam algumas estimativas das buscas e as navegações de buscas considerando as duas categorias principais observadas. Essa análise vai permitir identificar diferenças significativas entre os dois grupos principais de sessões de usuários.
+Este relatório tem como objetivo responder algumas outras questões importantes das buscas no Wikimedia. Diferentemente do relatório [anteiror](http://rpubs.com/marcosasn/390792), nós agora desejamos observar como se comportam alguns resultados envolvendo testes de hipóteses levando em consideração as buscas e as navegações de buscas nas duas categorias observadas. Essa análise vai permitir identificar diferenças significativas entre os dois grupos principais de sessões de usuários.
 
 ## Resultados e discussão
 
 **QP1:** Qual é a taxa de cliques geral diária? Como ela varia entre os grupos A e B? Existe diferença significativa da taxa de cliques geral diária entre os grupos A e B?
 
-Com o objetivo de responder **QP1**, nós observamos como é a taxa de cliques geral diária entre os grupos. Nós observamos em um relatório anterior que essas taxas são ligeiramente diferentes. Isso fica evidente se observarmos o gráfico abaixo. Neste gráfico, é possível observar que as taxas do grupo A foram superiores, todos os dias de observação, em relação às taxas do grupo B. Com o objetivo de verificar a existência de uma diferença significativa entre essas taxas, nós utilizados o teste de permutação de duas caldas de duas amostras para comparar as taxas de cliques dos dois grupos. Este teste estatístico não paramétrico avalia se duas distribuições são a mesma. **Qual a permutação sendo feita?** A hipótese nula não existe diferença significativa entre as amostras contra a hipótese alternativa que existe diferença em uma medida local, neste caso a mediana de taxas de cliques.
+Com o objetivo de responder **QP1**, nós observamos como é a taxa de cliques geral diária entre os grupos. Nós observamos em um relatório anterior que essas taxas são ligeiramente diferentes. Isso fica evidente se observarmos o gráfico abaixo. Neste gráfico, é possível observar que as taxas do grupo A foram superiores, todos os dias de observação, em relação às taxas do grupo B. Com o objetivo de verificar a existência de uma diferença significativa entre essas taxas, nós utilizados o teste de permutação de duas caldas de duas amostras para comparar as taxas de cliques dos dois grupos. Este teste estatístico não paramétrico, avalia se duas distribuições são a mesma. Isso é feito através de permutações da variável categórica que representa o grupo da sessão de busca. Basicamente, este teste faz permutas do valor do grupo (A ou B) de modo que uma configuração base seja construída. Essa configuração base é o caso em que não podemos observar diferença entre as taxas de cliques dos dois grupos. A hipótese nula do teste é que não existe diferença significativa entre as amostras, contra a hipótese alternativa que existe diferença em uma medida local, neste caso a mediana de taxas de cliques geral diária.
 
 ```{r}
 buscas %>% 
@@ -66,7 +65,7 @@ buscas %>%
     theme(plot.title = element_text(hjust = 0.5))
 ```
 
-Os resultado dos testes confirmaram que existe uma diferença significativa entre as taxas de cliques dos grupos. O teste abaixo corrobora com nossas conclusões anteriores. Nós verificamos em um relatório anterior que como a distribuição da estimativa da diferença mediana entre as taxas incluia apenas números positivos maiores que zero. Isso nos levou a concluir que, assim como na nossa amostra, existia uma diferença significativa das taxas medianas entre os grupos também na população de onde os nossos dados foram originados. Nós pudemos ainda observar que as taxas de cliques no grupo A, em mediana, é maior que a taxa de cliques do outro grupo com adequada significância estatística (p-value < 6E-04, 0.05 significance level). Consequentemente, isso nós permite rejeitar a hipótese nula em favor da alternativa.
+Os resultado dos testes confirmaram que existe uma diferença significativa entre as taxas de cliques dos grupos. Nós pudemos observar que as taxas de cliques geral diária no grupo A, em mediana, é maior que a taxa de cliques geral diária do grupo B com adequada significância estatística (p-value < 6E-04, 0.05 nível de significância). Consequentemente, isso nós permite rejeitar a hipótese nula em favor da alternativa. Este resultado corrobora com nossas conclusões em um relatório [anterior](http://rpubs.com/marcosasn/390792). Nós observamos que a distribuição da estimativa da diferença da mediana entre as taxas de cliques incluia apenas números positivos maiores que zero. Com resultado disso, assim como na nossa amostra, existia uma diferença significativa das taxas medianas de cliques entre os grupos também na população de onde os nossos dados foram originados.
 
 ```{r}
 #There is difference between the a diary median ctr and b (p-value=8E-04)
@@ -74,10 +73,11 @@ buscas %>%
     group_by(day, group) %>% 
     summarise(ctr = sum(num_clicks > 0) / n()) %>%
     permutationTest2(median(ctr), treatment = group)
-
 ```
 
-**Comentar sobre as vantagens e desvantagens que você vê no resultado ao qual chegou agora e utilizando ICs para as mesmas perguntas.** Observando o intervalo de confiança abaixo, podemos concluir com 95% de confiança, que existe uma diferença significativa entre as taxas medianas de cliques geral diária entre os grupos A e B na população de todas as buscas realizadas no Wikimedia. Além disso, podemos ainda concluir que, a mediana das taxas de cliques geral diária do grupo A é maior que a mediana das taxas de cliques geral diária do grupo B. Com relação à extensão ou relevância dessa diferença, podemos afirmar que ela não aparenta ser grande (~0.0347).
+Até o momento é justo comentar sobre as vantagens e desvantagens que nós observamos entre os resultados mostrados pelo intervalo de confiança e o teste de hipótese. De modo prático, nenhuma diferença é observada com relação às conclusões. Levando em consideração o fato de que os métodos levam aos mesmos resultados. Contudo, nota-se uma diferença sutil. Nós observamos que, ambos os testes possuem desvantagens e vantagens. O intervalo de confiança, por um lado, é vantajoso porque permite conhecer o tamanho ou a extensão do *effect* do resultado. Note que, o teste aponta isso através dos limites superiores e inferiores. Contudo, como desvantagem, o mesmo exige um maior nível de abstração pela sutileza do teste. É claro, a hipótese nula do teste leva em consideração algo pouco evidente para o leitor (a-b = 0).
+
+Observando o teste de hipótese, por outro lado, o mesmo é vantajoso porque permite conhecer o outro lado do paraíso, a significância ou o *power* do resultado. Note que, o teste mostra isso de forma clara através do nível de confiança utilizado no teste. Além disso, neste teste a interface exige do usuário menos esforço na comparação de grupos. Uma vez que, o pesquisador pode inserir o que será comparado de forma intuitiva. Como resultado disso, podemos observar uma menor exigência de abstração matemática do pesquisador no uso prático. Contudo, como desvantagem, percebemos um maior esforço do leitor durante a interpretação dos resultados. Principalmente, durante a leitura de artigos científicos.
 
 **QP3:** Qual é a taxa de resultados zero geral diária? Como ela varia entre os grupos A e B? Existe diferença significativa da taxa de resultados iguais a zero entre os grupos A e B?
 
